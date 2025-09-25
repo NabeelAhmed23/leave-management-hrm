@@ -1,33 +1,16 @@
-import dynamic from "next/dynamic";
 import { Suspense } from "react";
 import { AuthLayout } from "@/components/auth/auth-layout";
-
-// Lazy load the login form
-const LoginForm = dynamic(
-  () =>
-    import("@/components/auth/login-form").then(mod => ({
-      default: mod.LoginForm,
-    })),
-  {
-    loading: () => (
-      <div className="animate-pulse space-y-4">
-        <div className="h-4 w-3/4 rounded bg-gray-200"></div>
-        <div className="h-10 rounded bg-gray-200"></div>
-        <div className="h-10 rounded bg-gray-200"></div>
-        <div className="h-10 rounded bg-gray-200"></div>
-      </div>
-    ),
-    ssr: false,
-  }
-);
+import { LazyLoginForm } from "@/components/auth/lazy-login-form";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface LoginPageProps {
-  searchParams: { callbackUrl?: string };
+  searchParams: Promise<{ callbackUrl?: string }>;
 }
 
-export default function LoginPage({
+export default async function LoginPage({
   searchParams,
-}: LoginPageProps): React.ReactElement {
+}: LoginPageProps): Promise<React.ReactElement> {
+  const { callbackUrl } = await searchParams;
   return (
     <AuthLayout
       title="Sign In"
@@ -35,15 +18,15 @@ export default function LoginPage({
     >
       <Suspense
         fallback={
-          <div className="animate-pulse space-y-4">
-            <div className="h-4 w-3/4 rounded bg-gray-200"></div>
-            <div className="h-10 rounded bg-gray-200"></div>
-            <div className="h-10 rounded bg-gray-200"></div>
-            <div className="h-10 rounded bg-gray-200"></div>
+          <div className="space-y-4">
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
           </div>
         }
       >
-        <LoginForm callbackUrl={searchParams.callbackUrl} />
+        <LazyLoginForm callbackUrl={callbackUrl} />
       </Suspense>
     </AuthLayout>
   );

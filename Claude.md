@@ -100,6 +100,7 @@ Build a maintainable, scalable SaaS Leave Management System (LMS) targeting a ni
 - use lazy loading, dynamic imports and code splitting to keep the application performance as high as possible but do not over optimize it
 - Never use anything that is not imported or leave anything that is not used.
 - Use proper <Skeleton /> component from shadcn to show loading states for loading something. and use Spinner to show loading when you press a button
+- Do not use ssr in server components to avoid "`ssr: false` is not allowed with `next/dynamic` in Server Components. Please move it into a Client Component".
 
 ### Naming Conventions
 
