@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { LazyDashboardClient } from "@/components/dashboard/lazy-dashboard-client";
+import { DashboardClient } from "@/components/dashboard/dashboard-client";
 
 export default function HomePage(): React.ReactElement {
   return (
@@ -10,7 +10,7 @@ export default function HomePage(): React.ReactElement {
         </div>
       }
     >
-      <LazyDashboardClient />
+      <DashboardClient />
     </Suspense>
   );
 }

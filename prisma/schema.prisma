@@ -6,6 +6,7 @@
 
 generator client {
   provider = "prisma-client-js"
+  output   = "../generated/prisma"
 }
 
 datasource db {
@@ -14,70 +15,70 @@ datasource db {
 }
 
 model User {
-  id            String   @id @default(cuid())
-  email         String   @unique
-  firstName     String
-  lastName      String
-  passwordHash  String
-  role          Role     @default(EMPLOYEE)
-  organizationId String?
-  organization  Organization? @relation(fields: [organizationId], references: [id])
-  leaveRequests LeaveRequest[]
+  id               String         @id @default(cuid())
+  email            String         @unique
+  firstName        String
+  lastName         String
+  passwordHash     String
+  role             Role           @default(EMPLOYEE)
+  organizationId   String?
+  organization     Organization?  @relation(fields: [organizationId], references: [id])
+  leaveRequests    LeaveRequest[]
   approvedRequests LeaveRequest[] @relation("ApprovedBy")
-  accounts      Account[]
-  sessions      Session[]
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  accounts         Account[]
+  sessions         Session[]
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
 
   @@map("users")
 }
 
 model Organization {
-  id            String   @id @default(cuid())
+  id            String      @id @default(cuid())
   name          String
-  domain        String   @unique
+  domain        String      @unique
   settings      Json?
-  carryOverDays Int      @default(0)
+  carryOverDays Int         @default(0)
   users         User[]
   leaveTypes    LeaveType[]
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 
   @@map("organizations")
 }
 
 model LeaveType {
-  id              String   @id @default(cuid())
-  name            String
-  description     String?
-  maxDaysPerYear  Int
-  organizationId  String
-  organization    Organization @relation(fields: [organizationId], references: [id])
-  leaveRequests   LeaveRequest[]
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id             String         @id @default(cuid())
+  name           String
+  description    String?
+  maxDaysPerYear Int
+  organizationId String
+  organization   Organization   @relation(fields: [organizationId], references: [id])
+  leaveRequests  LeaveRequest[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 
   @@unique([name, organizationId])
   @@map("leave_types")
 }
 
 model LeaveRequest {
-  id          String      @id @default(cuid())
-  userId      String
-  user        User        @relation(fields: [userId], references: [id])
-  leaveTypeId String
-  leaveType   LeaveType   @relation(fields: [leaveTypeId], references: [id])
-  startDate   DateTime
-  endDate     DateTime
-  totalDays   Int
-  reason      String?
-  status      LeaveStatus @default(PENDING)
+  id           String      @id @default(cuid())
+  userId       String
+  user         User        @relation(fields: [userId], references: [id])
+  leaveTypeId  String
+  leaveType    LeaveType   @relation(fields: [leaveTypeId], references: [id])
+  startDate    DateTime
+  endDate      DateTime
+  totalDays    Int
+  reason       String?
+  status       LeaveStatus @default(PENDING)
   approvedById String?
-  approvedBy  User?       @relation("ApprovedBy", fields: [approvedById], references: [id])
-  approvedAt  DateTime?
-  comments    String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  approvedBy   User?       @relation("ApprovedBy", fields: [approvedById], references: [id])
+  approvedAt   DateTime?
+  comments     String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
 
   @@map("leave_requests")
 }

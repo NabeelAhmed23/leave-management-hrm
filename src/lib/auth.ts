@@ -4,6 +4,7 @@ import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
 import { Role } from "@prisma/client";
+import { logger } from "./logger";
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
@@ -49,8 +50,11 @@ export const authOptions: NextAuthOptions = {
             organization: user.organization,
           };
         } catch (error) {
-          // TODO: Replace with proper logging service
-          console.error("Auth error:", error);
+          logger.error("Authentication failed", {
+            error: error instanceof Error ? error : new Error(String(error)),
+            email: credentials.email,
+            action: "authenticate_user",
+          });
           return null;
         }
       },

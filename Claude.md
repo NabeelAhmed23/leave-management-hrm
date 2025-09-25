@@ -97,7 +97,7 @@ Build a maintainable, scalable SaaS Leave Management System (LMS) targeting a ni
 - Review PRs for readability, not cleverness — code must be simple and clear.
 - Use nextjs inbuilt component like Link or Image.
 - Code in such a way that it does not make everything client side, only use client side when needed
-- use lazy loading, dynamic imports and code splitting to keep the application performance as high as possible but do not over optimize it
+- use lazy loading, dynamic imports and code splitting to keep the application performance as high as possible but do not over optimize it. Dynamic imports will only be for large components or modals such as Dialog or Alert.
 - Never use anything that is not imported or leave anything that is not used.
 - Use proper <Skeleton /> component from shadcn to show loading states for loading something. and use Spinner to show loading when you press a button
 - Do not use ssr in server components to avoid "`ssr: false` is not allowed with `next/dynamic` in Server Components. Please move it into a Client Component".
