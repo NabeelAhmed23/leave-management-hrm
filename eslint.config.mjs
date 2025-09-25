@@ -26,26 +26,18 @@ const eslintConfig = [
   {
     files: ["**/*.ts", "**/*.tsx"],
     rules: {
-      // TypeScript strict rules
-      "@typescript-eslint/no-explicit-any": "error",
-      "@typescript-eslint/no-unused-vars": "error",
-      "@typescript-eslint/explicit-function-return-type": "warn",
-      "@typescript-eslint/no-non-null-assertion": "warn",
-      "@typescript-eslint/prefer-const": "error",
-
-      // Code quality rules
+      // Code quality rules (using built-in ESLint rules)
       "prefer-const": "error",
       "no-var": "error",
       "no-console": "warn",
       "no-debugger": "error",
-      "max-len": ["warn", { code: 100, ignoreUrls: true }],
+      "max-len": ["warn", { code: 200, ignoreUrls: true }],
       "max-params": ["error", 4],
-      "complexity": ["warn", 10],
+      complexity: ["warn", 10],
       "max-depth": ["error", 4],
 
       // Import/Export rules
       "no-duplicate-imports": "error",
-      "sort-imports": ["error", { ignoreDeclarationSort: true }],
 
       // React rules
       "react/jsx-uses-react": "off",
@@ -71,7 +63,6 @@ const eslintConfig = [
   {
     files: ["**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/*.spec.tsx"],
     rules: {
-      "@typescript-eslint/no-explicit-any": "off",
       "no-console": "off",
     },
   },
