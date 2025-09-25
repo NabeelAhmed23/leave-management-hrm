@@ -34,16 +34,19 @@ export const registerSchema = z.object({
 export const leaveRequestSchema = z
   .object({
     leaveTypeId: z.string().cuid("Invalid leave type ID"),
-    startDate: z.string().refine((date) => !isNaN(Date.parse(date)), {
+    startDate: z.string().refine(date => !isNaN(Date.parse(date)), {
       message: "Invalid start date",
     }),
-    endDate: z.string().refine((date) => !isNaN(Date.parse(date)), {
+    endDate: z.string().refine(date => !isNaN(Date.parse(date)), {
       message: "Invalid end date",
     }),
-    reason: z.string().max(500, "Reason must not exceed 500 characters").optional(),
+    reason: z
+      .string()
+      .max(500, "Reason must not exceed 500 characters")
+      .optional(),
   })
   .refine(
-    (data) => {
+    data => {
       const startDate = new Date(data.startDate);
       const endDate = new Date(data.endDate);
       return endDate >= startDate;
@@ -56,7 +59,10 @@ export const leaveRequestSchema = z
 
 export const updateLeaveRequestStatusSchema = z.object({
   status: z.enum(["APPROVED", "REJECTED", "CANCELLED"]),
-  comments: z.string().max(500, "Comments must not exceed 500 characters").optional(),
+  comments: z
+    .string()
+    .max(500, "Comments must not exceed 500 characters")
+    .optional(),
 });
 
 // Leave type schemas
@@ -114,15 +120,23 @@ export const paginationSchema = z.object({
 export const leaveRequestQuerySchema = paginationSchema.extend({
   status: z.enum(["PENDING", "APPROVED", "REJECTED", "CANCELLED"]).optional(),
   userId: z.string().cuid().optional(),
-  startDate: z.string().refine((date) => !isNaN(Date.parse(date))).optional(),
-  endDate: z.string().refine((date) => !isNaN(Date.parse(date))).optional(),
+  startDate: z
+    .string()
+    .refine(date => !isNaN(Date.parse(date)))
+    .optional(),
+  endDate: z
+    .string()
+    .refine(date => !isNaN(Date.parse(date)))
+    .optional(),
 });
 
 // Type inference
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LeaveRequestInput = z.infer<typeof leaveRequestSchema>;
-export type UpdateLeaveRequestStatusInput = z.infer<typeof updateLeaveRequestStatusSchema>;
+export type UpdateLeaveRequestStatusInput = z.infer<
+  typeof updateLeaveRequestStatusSchema
+>;
 export type LeaveTypeInput = z.infer<typeof leaveTypeSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
 export type OrganizationInput = z.infer<typeof organizationSchema>;

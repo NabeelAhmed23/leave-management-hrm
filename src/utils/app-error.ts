@@ -1,14 +1,18 @@
 export interface NormalizedError {
   statusCode: number;
   message: string;
-  details?: any;
+  details?: Record<string, unknown>;
 }
 
 export class AppError extends Error {
   public statusCode: number;
-  public details?: any;
+  public details?: Record<string, unknown>;
 
-  constructor(message: string, statusCode = 500, details?: any) {
+  constructor(
+    message: string,
+    statusCode = 500,
+    details?: Record<string, unknown>
+  ) {
     super(message);
     this.statusCode = statusCode;
     this.details = details;
@@ -24,28 +28,20 @@ export class AppError extends Error {
     }
 
     if (error instanceof SyntaxError) {
-      return new AppError(
-        "Invalid JSON or syntax error",
-        400,
-        { original: error.message }
-      );
+      return new AppError("Invalid JSON or syntax error", 400, {
+        original: error.message,
+      });
     }
 
     if (error instanceof TypeError) {
-      return new AppError(
-        "Type error occurred",
-        400,
-        { original: error.message }
-      );
+      return new AppError("Type error occurred", 400, {
+        original: error.message,
+      });
     }
 
     if (error instanceof Error) {
       if (error.name.includes("Prisma") || error.name.includes("Sequelize")) {
-        return new AppError(
-          "Database error",
-          500,
-          { original: error.message }
-        );
+        return new AppError("Database error", 500, { original: error.message });
       }
       return new AppError(error.message, 500);
     }

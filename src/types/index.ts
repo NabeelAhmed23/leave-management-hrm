@@ -1,7 +1,7 @@
 import { User, Organization, LeaveType, LeaveRequest } from "@prisma/client";
 
 // API Response types
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = Record<string, unknown>> {
   data?: T;
   error?: string;
   message?: string;

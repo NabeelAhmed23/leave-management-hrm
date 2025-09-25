@@ -1,9 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { AppError } from "./app-error";
 
 export function handleApiError(error: unknown): NextResponse {
   const appError = AppError.from(error);
 
+  // TODO: Replace with proper logging service
   console.error(`[API Error] ${appError.message}`, {
     statusCode: appError.statusCode,
     details: appError.details,
@@ -19,7 +20,7 @@ export function handleApiError(error: unknown): NextResponse {
   );
 }
 
-export function withErrorHandling<T extends any[]>(
+export function withErrorHandling<T extends unknown[]>(
   handler: (...args: T) => Promise<NextResponse>
 ) {
   return async (...args: T): Promise<NextResponse> => {

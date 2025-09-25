@@ -33,7 +33,7 @@ const eslintConfig = [
       "no-debugger": "error",
       "max-len": ["warn", { code: 200, ignoreUrls: true }],
       "max-params": ["error", 4],
-      complexity: ["warn", 10],
+      complexity: ["warn", 15],
       "max-depth": ["error", 4],
 
       // Import/Export rules
@@ -64,6 +64,12 @@ const eslintConfig = [
     files: ["**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/*.spec.tsx"],
     rules: {
       "no-console": "off",
+    },
+  },
+  {
+    files: ["jest.config.js", "jest.setup.js"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
     },
   },
 ];

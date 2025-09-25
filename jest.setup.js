@@ -1,15 +1,15 @@
-import '@testing-library/jest-dom'
+import "@testing-library/jest-dom";
 
 // Mock environment variables for testing
-process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test_db'
-process.env.JWT_SECRET = 'test-jwt-secret-that-is-long-enough-for-testing'
-process.env.NEXTAUTH_SECRET = 'test-nextauth-secret-that-is-long-enough'
-process.env.NEXTAUTH_URL = 'http://localhost:3000'
-process.env.APP_URL = 'http://localhost:3000'
-process.env.NODE_ENV = 'test'
+process.env.DATABASE_URL = "postgresql://test:test@localhost:5432/test_db";
+process.env.JWT_SECRET = "test-jwt-secret-that-is-long-enough-for-testing";
+process.env.NEXTAUTH_SECRET = "test-nextauth-secret-that-is-long-enough";
+process.env.NEXTAUTH_URL = "http://localhost:3000";
+process.env.APP_URL = "http://localhost:3000";
+process.env.NODE_ENV = "test";
 
 // Mock Next.js router
-jest.mock('next/navigation', () => ({
+jest.mock("next/navigation", () => ({
   useRouter() {
     return {
       push: jest.fn(),
@@ -18,18 +18,18 @@ jest.mock('next/navigation', () => ({
       back: jest.fn(),
       forward: jest.fn(),
       refresh: jest.fn(),
-    }
+    };
   },
   useSearchParams() {
-    return new URLSearchParams()
+    return new URLSearchParams();
   },
   usePathname() {
-    return '/'
+    return "/";
   },
-}))
+}));
 
 // Mock Prisma client
-jest.mock('@/lib/prisma', () => ({
+jest.mock("@/lib/prisma", () => ({
   prisma: {
     user: {
       findUnique: jest.fn(),
@@ -60,29 +60,29 @@ jest.mock('@/lib/prisma', () => ({
       delete: jest.fn(),
     },
   },
-}))
+}));
 
 // Global test utilities
 global.ResizeObserver = jest.fn().mockImplementation(() => ({
   observe: jest.fn(),
   unobserve: jest.fn(),
   disconnect: jest.fn(),
-}))
+}));
 
 // Suppress console errors in tests unless explicitly testing them
-const originalError = console.error
+const originalError = console.error;
 beforeAll(() => {
   console.error = (...args) => {
     if (
-      typeof args[0] === 'string' &&
-      args[0].includes('Warning: ReactDOM.render is no longer supported')
+      typeof args[0] === "string" &&
+      args[0].includes("Warning: ReactDOM.render is no longer supported")
     ) {
-      return
+      return;
     }
-    originalError.call(console, ...args)
-  }
-})
+    originalError.call(console, ...args);
+  };
+});
 
 afterAll(() => {
-  console.error = originalError
-})
+  console.error = originalError;
+});
