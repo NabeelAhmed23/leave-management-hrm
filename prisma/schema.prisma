@@ -1,0 +1,95 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  firstName     String
+  lastName      String
+  passwordHash  String
+  role          Role     @default(EMPLOYEE)
+  organizationId String?
+  organization  Organization? @relation(fields: [organizationId], references: [id])
+  leaveRequests LeaveRequest[]
+  approvedRequests LeaveRequest[] @relation("ApprovedBy")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("users")
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  domain    String   @unique
+  settings  Json?
+  users     User[]
+  leaveTypes LeaveType[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("organizations")
+}
+
+model LeaveType {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+  maxDaysPerYear  Int
+  carryOverDays   Int      @default(0)
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  leaveRequests   LeaveRequest[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([name, organizationId])
+  @@map("leave_types")
+}
+
+model LeaveRequest {
+  id          String      @id @default(cuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id])
+  leaveTypeId String
+  leaveType   LeaveType   @relation(fields: [leaveTypeId], references: [id])
+  startDate   DateTime
+  endDate     DateTime
+  totalDays   Int
+  reason      String?
+  status      LeaveStatus @default(PENDING)
+  approvedById String?
+  approvedBy  User?       @relation("ApprovedBy", fields: [approvedById], references: [id])
+  approvedAt  DateTime?
+  comments    String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@map("leave_requests")
+}
+
+enum Role {
+  EMPLOYEE
+  MANAGER
+  HR_ADMIN
+  SUPER_ADMIN
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}

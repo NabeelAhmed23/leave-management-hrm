@@ -1,0 +1,10 @@
+node_modules
+.next
+.vercel
+build
+dist
+out
+*.log
+.env*
+public
+coverage
