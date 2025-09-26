@@ -47,10 +47,10 @@ export function LoginForm({
         setError("Invalid email or password");
       } else if (result?.ok) {
         if (!callbackUrl) {
-          router.push("/");
+          router.refresh();
+          return;
         }
         router.push(callbackUrl);
-        router.refresh();
       }
     } catch {
       setError("An unexpected error occurred. Please try again.");

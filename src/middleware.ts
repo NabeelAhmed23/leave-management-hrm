@@ -1,66 +1,63 @@
 import { withAuth } from "next-auth/middleware";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-export default withAuth(
-  function middleware(req) {
-    const { pathname } = req.nextUrl;
-    const token = req.nextauth.token;
+// Define route patterns
+const authRoutes = [
+  "/login",
+  "/register",
+  "/forgot-password",
+  "/reset-password",
+  "/verify-email",
+  "/auth/invite",
+];
 
-    // Allow access to auth pages and API routes
-    if (
-      pathname.startsWith("/login") ||
-      pathname.startsWith("/register") ||
-      pathname.startsWith("/api/auth") ||
-      pathname.startsWith("/_next") ||
-      pathname.startsWith("/favicon")
-    ) {
-      return NextResponse.next();
-    }
-
-    // Redirect to login if not authenticated
-    if (!token) {
-      const loginUrl = new URL("/login", req.url);
-      loginUrl.searchParams.set("callbackUrl", pathname);
-      return NextResponse.redirect(loginUrl);
-    }
-
-    // Role-based access control examples (can be extended)
-    if (pathname.startsWith("/admin") && token.role !== "SUPER_ADMIN") {
-      return NextResponse.redirect(new URL("/unauthorized", req.url));
-    }
-
-    if (
-      pathname.startsWith("/hr") &&
-      !["HR_ADMIN", "SUPER_ADMIN"].includes(token.role as string)
-    ) {
-      return NextResponse.redirect(new URL("/unauthorized", req.url));
-    }
-
-    return NextResponse.next();
-  },
-  {
-    callbacks: {
-      authorized: ({ token, req }) => {
-        const { pathname } = req.nextUrl;
-
-        // Always allow access to public routes
-        if (
-          pathname.startsWith("/login") ||
-          pathname.startsWith("/register") ||
-          pathname.startsWith("/api/auth") ||
-          pathname === "/" ||
-          pathname.startsWith("/_next") ||
-          pathname.startsWith("/favicon")
-        ) {
-          return true;
-        }
-
-        // Require authentication for all other routes
-        return !!token;
-      },
-    },
+// Helper function to check route type
+function getRouteType(pathname: string): "auth" | "protected" | "public" {
+  if (authRoutes.some(route => pathname.startsWith(route))) {
+    return "auth";
   }
-);
+  return "protected";
+}
+
+export default async function middleware(req: NextRequest) {
+  const { pathname } = req.nextUrl;
+  const isAuth = req.cookies.get("next-auth.session-token")?.value || undefined;
+  const routeType = getRouteType(pathname);
+  // Skip middleware for static files and API routes
+  if (
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/api") ||
+    pathname.includes(".") ||
+    pathname.startsWith("/favicon")
+  ) {
+    return NextResponse.next();
+  }
+
+  switch (routeType) {
+    case "auth":
+      // If user is authenticated and tries to access auth pages, redirect to dashboard
+      if (isAuth) {
+        return NextResponse.redirect(new URL("/", req.url));
+      }
+      break;
+
+    case "protected":
+      // If user is not authenticated and tries to access protected pages, redirect to login
+      if (!isAuth) {
+        // Store the intended destination for after login
+        const redirectUrl = new URL("/login", req.url);
+        redirectUrl.searchParams.set("redirect", pathname);
+        return NextResponse.redirect(redirectUrl);
+      }
+      break;
+
+    case "public":
+      // Public routes are always accessible
+      break;
+  }
+
+  return NextResponse.next();
+}
 
 export const config = {
   matcher: [
