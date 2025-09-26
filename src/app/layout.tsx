@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AuthProvider } from "@/components/auth/auth-provider";
+import { QueryProvider } from "@/providers/query-provider";
 import "./globals.css";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -32,7 +33,9 @@ export default async function RootLayout({
         suppressHydrationWarning
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <AuthProvider session={session}>{children}</AuthProvider>
+        <QueryProvider>
+          <AuthProvider session={session}>{children}</AuthProvider>
+        </QueryProvider>
       </body>
     </html>
   );

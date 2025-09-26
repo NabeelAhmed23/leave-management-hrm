@@ -9,14 +9,16 @@ import { EyeOpenIcon, EyeNoneIcon } from "@radix-ui/react-icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Spinner } from "@/components/ui/spinner";
 import { registerSchema, type RegisterInput } from "@/schemas/auth.schema";
+import { useRegisterMutation } from "@/hooks/use-auth";
+import { AppError } from "@/utils/app-error";
 
 export function RegisterForm(): React.ReactElement {
-  const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
   const router = useRouter();
+
+  const registerMutation = useRegisterMutation();
 
   const {
     register,
@@ -27,39 +29,17 @@ export function RegisterForm(): React.ReactElement {
   });
 
   const onSubmit = async (data: RegisterInput): Promise<void> => {
-    setIsLoading(true);
-    setError(null);
-    setSuccess(false);
-
-    try {
-      const response = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.message || "Registration failed");
-      }
-
-      setSuccess(true);
-      setTimeout(() => {
-        router.push("/login");
-      }, 2000);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "An unexpected error occurred"
-      );
-    } finally {
-      setIsLoading(false);
-    }
+    registerMutation.mutate(data, {
+      onSuccess: () => {
+        // Show success message and redirect after delay
+        setTimeout(() => {
+          router.push("/login");
+        }, 2000);
+      },
+    });
   };
 
-  if (success) {
+  if (registerMutation.isSuccess) {
     return (
       <div className="mx-auto w-full max-w-md space-y-6">
         <div className="space-y-2 text-center">
@@ -92,9 +72,11 @@ export function RegisterForm(): React.ReactElement {
   return (
     <div className="w-full space-y-6">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        {error && (
+        {registerMutation.error && (
           <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-600">
-            {error}
+            {registerMutation.error instanceof AppError
+              ? registerMutation.error.message
+              : "An unexpected error occurred"}
           </div>
         )}
 
@@ -171,8 +153,19 @@ export function RegisterForm(): React.ReactElement {
           </div>
         </div>
 
-        <Button type="submit" className="w-full" disabled={isLoading}>
-          {isLoading ? "Creating account..." : "Create Account"}
+        <Button
+          type="submit"
+          className="w-full"
+          disabled={registerMutation.isPending}
+        >
+          {registerMutation.isPending ? (
+            <>
+              <Spinner size="sm" className="mr-2" />
+              Creating account...
+            </>
+          ) : (
+            "Create Account"
+          )}
         </Button>
       </form>
 

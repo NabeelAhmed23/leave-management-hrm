@@ -177,3 +177,7 @@
     @apply bg-background text-foreground;
   }
 }
+
+input::placeholder {
+  @apply text-slate-400;
+}

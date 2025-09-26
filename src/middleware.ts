@@ -1,4 +1,3 @@
-import { withAuth } from "next-auth/middleware";
 import { NextRequest, NextResponse } from "next/server";
 
 // Define route patterns

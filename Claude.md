@@ -101,6 +101,10 @@ Build a maintainable, scalable SaaS Leave Management System (LMS) targeting a ni
 - Never use anything that is not imported or leave anything that is not used.
 - Use proper <Skeleton /> component from shadcn to show loading states for loading something. and use Spinner to show loading when you press a button
 - Do not use ssr in server components to avoid "`ssr: false` is not allowed with `next/dynamic` in Server Components. Please move it into a Client Component".
+- Always use Form component of shadcn for forms
+- Always use React Query with axios for api calls
+- Create proper axios instance with interceptors
+- Never use console, always use logger service
 
 ### Naming Conventions
 
