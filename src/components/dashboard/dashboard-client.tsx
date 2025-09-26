@@ -1,20 +1,23 @@
 "use client";
 
-import { useSession, signOut } from "next-auth/react";
+import { useAuth } from "@/components/auth/auth-provider";
+import { useLogoutMutation } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 
 export function DashboardClient(): React.ReactElement {
-  const { data: session, status } = useSession();
+  const { user, isLoading } = useAuth();
+  const logoutMutation = useLogoutMutation();
 
-  if (status === "loading") {
+  if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="border-primary h-8 w-8 animate-spin rounded-full border-b-2"></div>
+        <Spinner size="lg" />
       </div>
     );
   }
 
-  if (!session) {
+  if (!user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
         <div className="space-y-4 text-center">
@@ -42,16 +45,24 @@ export function DashboardClient(): React.ReactElement {
             </div>
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-700">
-                Welcome, {session.user.firstName} {session.user.lastName}
+                Welcome, {user.firstName} {user.lastName}
               </span>
               <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800">
-                {session.user.role}
+                {user.role}
               </span>
               <Button
                 variant="outline"
-                onClick={() => signOut({ callbackUrl: "/login" })}
+                onClick={() => logoutMutation.mutate()}
+                disabled={logoutMutation.isPending}
               >
-                Sign Out
+                {logoutMutation.isPending ? (
+                  <>
+                    <Spinner size="sm" className="mr-2" />
+                    Signing out...
+                  </>
+                ) : (
+                  "Sign Out"
+                )}
               </Button>
             </div>
           </div>
@@ -71,13 +82,13 @@ export function DashboardClient(): React.ReactElement {
                 <h3 className="font-medium text-gray-900">User Information</h3>
                 <dl className="mt-2 text-sm text-gray-600">
                   <dt className="inline">Email: </dt>
-                  <dd className="inline">{session.user.email}</dd>
+                  <dd className="inline">{user.email}</dd>
                   <br />
                   <dt className="inline">Role: </dt>
-                  <dd className="inline">{session.user.role}</dd>
+                  <dd className="inline">{user.role}</dd>
                   <br />
                   <dt className="inline">User ID: </dt>
-                  <dd className="inline">{session.user.id}</dd>
+                  <dd className="inline">{user.id}</dd>
                 </dl>
               </div>
             </div>

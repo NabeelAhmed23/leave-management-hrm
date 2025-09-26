@@ -104,7 +104,9 @@ Build a maintainable, scalable SaaS Leave Management System (LMS) targeting a ni
 - Always use Form component of shadcn for forms
 - Always use React Query with axios for api calls
 - Create proper axios instance with interceptors
-- Never use console, always use logger service
+- Never use console, always use logger service only on server side or in api's
+- Never leave a block empty or with just a console, remove it
+- Never use fetch, always use axios instance.
 
 ### Naming Conventions
 

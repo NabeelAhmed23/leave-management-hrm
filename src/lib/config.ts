@@ -8,8 +8,6 @@ const configSchema = z.object({
     .enum(["development", "test", "production"])
     .default("development"),
   APP_URL: z.string().url(),
-  NEXTAUTH_SECRET: z.string().min(32),
-  NEXTAUTH_URL: z.string().url(),
 
   // Optional email configuration
   SMTP_HOST: z.string().optional(),

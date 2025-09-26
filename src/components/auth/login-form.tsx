@@ -1,8 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
@@ -10,7 +8,10 @@ import { EyeOpenIcon, EyeNoneIcon } from "@radix-ui/react-icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Spinner } from "@/components/ui/spinner";
 import { loginSchema, type LoginInput } from "@/schemas/auth.schema";
+import { useLoginMutation } from "@/hooks/use-auth";
+import { AppError } from "@/utils/app-error";
 
 interface LoginFormProps {
   callbackUrl?: string;
@@ -19,10 +20,8 @@ interface LoginFormProps {
 export function LoginForm({
   callbackUrl = "/",
 }: LoginFormProps): React.ReactElement {
-  const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
+  const loginMutation = useLoginMutation();
 
   const {
     register,
@@ -33,38 +32,17 @@ export function LoginForm({
   });
 
   const onSubmit = async (data: LoginInput): Promise<void> => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const result = await signIn("credentials", {
-        email: data.email,
-        password: data.password,
-        redirect: false,
-      });
-
-      if (result?.error) {
-        setError("Invalid email or password");
-      } else if (result?.ok) {
-        if (!callbackUrl) {
-          router.refresh();
-          return;
-        }
-        router.push(callbackUrl);
-      }
-    } catch {
-      setError("An unexpected error occurred. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
+    loginMutation.mutate(data);
   };
 
   return (
     <div className="w-full space-y-6">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        {error && (
+        {loginMutation.error && (
           <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-600">
-            {error}
+            {loginMutation.error instanceof AppError
+              ? loginMutation.error.message
+              : "An unexpected error occurred"}
           </div>
         )}
 
@@ -109,8 +87,19 @@ export function LoginForm({
           )}
         </div>
 
-        <Button type="submit" className="w-full" disabled={isLoading}>
-          {isLoading ? "Signing in..." : "Sign In"}
+        <Button
+          type="submit"
+          className="w-full"
+          disabled={loginMutation.isPending}
+        >
+          {loginMutation.isPending ? (
+            <>
+              <Spinner size="sm" className="mr-2" />
+              Signing in...
+            </>
+          ) : (
+            "Sign In"
+          )}
         </Button>
       </form>
 

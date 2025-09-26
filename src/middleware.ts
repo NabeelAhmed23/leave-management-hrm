@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getSessionCookieConfig } from "@/lib/jwt";
 
 // Define route patterns
 const authRoutes = [
@@ -10,18 +11,23 @@ const authRoutes = [
   "/auth/invite",
 ];
 
+const publicRoutes = ["/"];
+
 // Helper function to check route type
 function getRouteType(pathname: string): "auth" | "protected" | "public" {
   if (authRoutes.some(route => pathname.startsWith(route))) {
     return "auth";
+  }
+  if (publicRoutes.some(route => pathname === route)) {
+    return "public";
   }
   return "protected";
 }
 
 export default async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  const isAuth = req.cookies.get("next-auth.session-token")?.value || undefined;
   const routeType = getRouteType(pathname);
+
   // Skip middleware for static files and API routes
   if (
     pathname.startsWith("/_next") ||
@@ -32,17 +38,23 @@ export default async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // Get session token from cookies
+  const cookieConfig = getSessionCookieConfig();
+  const sessionToken = req.cookies.get(cookieConfig.name)?.value || undefined;
+  // Verify token if it exists
+  const isAuthenticated = !!sessionToken;
+
   switch (routeType) {
     case "auth":
       // If user is authenticated and tries to access auth pages, redirect to dashboard
-      if (isAuth) {
+      if (isAuthenticated) {
         return NextResponse.redirect(new URL("/", req.url));
       }
       break;
 
     case "protected":
       // If user is not authenticated and tries to access protected pages, redirect to login
-      if (!isAuth) {
+      if (!isAuthenticated) {
         // Store the intended destination for after login
         const redirectUrl = new URL("/login", req.url);
         redirectUrl.searchParams.set("redirect", pathname);

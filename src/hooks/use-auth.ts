@@ -8,7 +8,7 @@ import {
   ResetPasswordInput,
 } from "@/schemas/auth.schema";
 import { AppError } from "@/utils/app-error";
-import { logger } from "@/services/logger.service";
+import { useAuth, type AuthUser } from "@/components/auth/auth-provider";
 
 // Query Keys
 export const authQueryKeys = {
@@ -21,69 +21,72 @@ export function useRegisterMutation() {
   return useMutation({
     mutationFn: (data: RegisterInput): Promise<RegisterResponse> =>
       authApi.register(data),
-    onSuccess: data => {
-      // Optionally handle success (e.g., show success message)
-      logger.info(`Registration successful: ${data.message}`);
-    },
-    onError: (error: AppError) => {
-      logger.error(`Registration failed: ${error.message}`);
-    },
   });
 }
 
 // Login Mutation Hook
 export function useLoginMutation() {
   const router = useRouter();
-  const queryClient = useQueryClient();
+  const { setUser } = useAuth();
 
   return useMutation({
-    mutationFn: (data: LoginInput) => authApi.login(data),
-    onSuccess: data => {
-      // Store token if provided
-      if (data.token && typeof window !== "undefined") {
-        localStorage.setItem("authToken", data.token);
+    mutationFn: async (data: LoginInput) => {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify(data),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new AppError(result.message || "Login failed", response.status);
       }
 
-      // Set user data in cache
-      queryClient.setQueryData(authQueryKeys.profile(), data.user);
+      return result;
+    },
+    onSuccess: data => {
+      // Update auth context with user data
+      if (data.success && data.user) {
+        setUser(data.user);
+      }
 
       // Redirect to dashboard
       router.push("/");
       router.refresh();
-    },
-    onError: (error: AppError) => {
-      logger.error(`Login failed: ${error.message}`);
     },
   });
 }
 
 // Logout Mutation Hook
 export function useLogoutMutation() {
-  const router = useRouter();
-  const queryClient = useQueryClient();
+  const { logout } = useAuth();
 
   return useMutation({
-    mutationFn: () => authApi.logout(),
-    onSuccess: () => {
-      // Clear token
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("authToken");
+    mutationFn: async () => {
+      const response = await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new AppError(result.message || "Logout failed", response.status);
       }
 
-      // Clear all cached data
-      queryClient.clear();
-
-      // Redirect to login
-      router.push("/login");
+      return result;
     },
-    onError: (error: AppError) => {
-      logger.error(`Logout failed: ${error.message}`);
-      // Even if logout fails on server, clear local storage
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("authToken");
-      }
-      queryClient.clear();
-      router.push("/login");
+    onSuccess: () => {
+      // Use auth context logout (which handles redirect)
+      logout();
+    },
+    onError: () => {
+      // Even if logout fails on server, clear local state
+      logout();
     },
   });
 }
@@ -92,12 +95,6 @@ export function useLogoutMutation() {
 export function useForgotPasswordMutation() {
   return useMutation({
     mutationFn: (data: ForgotPasswordInput) => authApi.forgotPassword(data),
-    onSuccess: data => {
-      logger.info(`Password reset email sent: ${data.message}`);
-    },
-    onError: (error: AppError) => {
-      logger.error(`Forgot password failed: ${error.message}`);
-    },
   });
 }
 
@@ -107,12 +104,8 @@ export function useResetPasswordMutation() {
 
   return useMutation({
     mutationFn: (data: ResetPasswordInput) => authApi.resetPassword(data),
-    onSuccess: data => {
-      logger.info(`Password reset successful: ${data.message}`);
+    onSuccess: () => {
       router.push("/login");
-    },
-    onError: (error: AppError) => {
-      logger.error(`Password reset failed: ${error.message}`);
     },
   });
 }
@@ -123,12 +116,8 @@ export function useVerifyEmailMutation() {
 
   return useMutation({
     mutationFn: (token: string) => authApi.verifyEmail(token),
-    onSuccess: data => {
-      logger.info(`Email verified: ${data.message}`);
+    onSuccess: () => {
       router.push("/login");
-    },
-    onError: (error: AppError) => {
-      logger.error(`Email verification failed: ${error.message}`);
     },
   });
 }
@@ -137,37 +126,35 @@ export function useVerifyEmailMutation() {
 export function useResendVerificationMutation() {
   return useMutation({
     mutationFn: (email: string) => authApi.resendVerification(email),
-    onSuccess: data => {
-      logger.info(`Verification email sent: ${data.message}`);
-    },
-    onError: (error: AppError) => {
-      logger.error(`Resend verification failed: ${error.message}`);
-    },
   });
 }
 
-// Get User Profile Query Hook
-export function useProfile() {
-  return useQuery({
-    queryKey: authQueryKeys.profile(),
-    queryFn: () => authApi.getProfile(),
-    enabled:
-      typeof window !== "undefined" && !!localStorage.getItem("authToken"),
-    staleTime: 1000 * 60 * 5, // 5 minutes
-    retry: (failureCount, error: { status?: number }) => {
-      // Don't retry on authentication errors
-      if (error?.status === 401) {
-        return false;
-      }
-      return failureCount < 3;
-    },
-  });
+// Get current user from auth context
+export function useCurrentUser(): AuthUser | null {
+  const { user } = useAuth();
+  return user;
 }
 
-// Custom hook to check if user is authenticated
+// Check if user is authenticated
 export function useIsAuthenticated(): boolean {
-  const { data: user, isLoading } = useProfile();
+  const { isAuthenticated } = useAuth();
+  return isAuthenticated;
+}
 
-  if (isLoading) return false;
-  return !!user;
+// Check if user has specific permission
+export function useHasPermission(permission: string): boolean {
+  const { user } = useAuth();
+  // For now, we'll implement a basic role-based check
+  // You can enhance this with more granular permissions later
+  if (!user) return false;
+
+  const rolePermissions: Record<string, string[]> = {
+    SUPER_ADMIN: ["*"], // All permissions
+    HR_ADMIN: ["users:read", "users:create", "leaves:approve", "reports:read"],
+    MANAGER: ["leaves:approve", "reports:read"],
+    EMPLOYEE: ["leaves:create", "leaves:read"],
+  };
+
+  const userPermissions = rolePermissions[user.role] || [];
+  return userPermissions.includes("*") || userPermissions.includes(permission);
 }

@@ -1,9 +1,10 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/components/auth/auth-provider";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Role } from "@prisma/client";
+import { Spinner } from "@/components/ui/spinner";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -16,36 +17,36 @@ export function ProtectedRoute({
   requiredRole,
   fallback,
 }: ProtectedRouteProps): React.ReactElement | null {
-  const { data: session, status } = useSession();
+  const { user, isLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (status === "loading") return;
+    if (isLoading) return;
 
-    if (!session) {
+    if (!user) {
       router.push("/login");
       return;
     }
 
-    if (requiredRole && !hasRequiredRole(session.user.role, requiredRole)) {
+    if (requiredRole && !hasRequiredRole(user.role, requiredRole)) {
       router.push("/unauthorized");
       return;
     }
-  }, [session, status, requiredRole, router]);
+  }, [user, isLoading, requiredRole, router]);
 
-  if (status === "loading") {
+  if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="border-primary h-8 w-8 animate-spin rounded-full border-b-2"></div>
+        <Spinner size="lg" />
       </div>
     );
   }
 
-  if (!session) {
+  if (!user) {
     return <div>{fallback || "Redirecting to login..."}</div>;
   }
 
-  if (requiredRole && !hasRequiredRole(session.user.role, requiredRole)) {
+  if (requiredRole && !hasRequiredRole(user.role, requiredRole)) {
     return <div>{fallback || "Unauthorized access"}</div>;
   }
 
