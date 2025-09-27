@@ -42,19 +42,8 @@ export function QueryProvider({
             refetchOnReconnect: process.env.NODE_ENV === "production",
           },
           mutations: {
-            // Retry failed mutations
-            retry: (failureCount, error) => {
-              // Don't retry client errors (4xx) except specific cases
-              const status = (error as { status?: number })?.status;
-              if (status && status >= 400 && status < 500) {
-                return false;
-              }
-              // Retry server errors up to 2 times
-              return failureCount < 2;
-            },
-            // Delay between mutation retries
-            retryDelay: attemptIndex =>
-              Math.min(1000 * 2 ** attemptIndex, 10000),
+            // No retries for mutations - only one call
+            retry: false,
           },
         },
       })

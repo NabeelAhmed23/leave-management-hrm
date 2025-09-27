@@ -35,12 +35,22 @@ apiClient.interceptors.request.use(
 const throwErrorWithSwitch = (status: number, data: unknown) => {
   switch (status) {
     case 401:
-      // Handle unauthorized - clear token and redirect to login
+      // Handle unauthorized - only clear token for authenticated requests
+      // Don't redirect for login attempts (let the component handle the error)
       if (typeof window !== "undefined") {
-        localStorage.removeItem("authToken");
-        window.location.href = "/login";
+        const token = localStorage.getItem("authToken");
+        if (token) {
+          // Only redirect if user was previously authenticated
+          localStorage.removeItem("authToken");
+          window.location.href = "/auth/login";
+        }
       }
-      break;
+      // Always throw error to let React Query handle it
+      throw new AppError(
+        (data as { message?: string })?.message || "Unauthorized",
+        401,
+        data as Record<string, unknown>
+      );
     case 403:
       throw new AppError("Access forbidden", 403);
     case 404:

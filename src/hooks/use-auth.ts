@@ -43,7 +43,6 @@ export function useLoginMutation() {
 
       // Redirect to dashboard
       router.push("/");
-      router.refresh();
     },
   });
 }
