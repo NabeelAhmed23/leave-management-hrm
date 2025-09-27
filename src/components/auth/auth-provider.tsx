@@ -9,12 +9,20 @@ export interface AuthUser {
   email: string;
   firstName: string;
   lastName: string;
-  role: Role;
-  organizationId?: string;
-  organization?: {
+  employee?: {
     id: string;
-    name: string;
-    domain: string;
+    employeeId: string;
+    role: Role;
+    organizationId: string;
+    organization: {
+      id: string;
+      name: string;
+      domain: string;
+    };
+    department?: {
+      id: string;
+      name: string;
+    };
   };
 }
 

@@ -28,7 +28,11 @@ export function ProtectedRoute({
       return;
     }
 
-    if (requiredRole && !hasRequiredRole(user.role, requiredRole)) {
+    if (
+      requiredRole &&
+      (!user.employee?.role ||
+        !hasRequiredRole(user.employee.role, requiredRole))
+    ) {
       router.push("/unauthorized");
       return;
     }
@@ -46,7 +50,10 @@ export function ProtectedRoute({
     return <div>{fallback || "Redirecting to login..."}</div>;
   }
 
-  if (requiredRole && !hasRequiredRole(user.role, requiredRole)) {
+  if (
+    requiredRole &&
+    (!user.employee?.role || !hasRequiredRole(user.employee.role, requiredRole))
+  ) {
     return <div>{fallback || "Unauthorized access"}</div>;
   }
 

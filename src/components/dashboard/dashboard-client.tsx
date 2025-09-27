@@ -4,6 +4,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { useLogoutMutation } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { formatRole } from "@/utils/format-role";
 
 export function DashboardClient(): React.ReactElement {
   const { user, isLoading } = useAuth();
@@ -48,7 +49,9 @@ export function DashboardClient(): React.ReactElement {
                 Welcome, {user.firstName} {user.lastName}
               </span>
               <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800">
-                {user.role}
+                {user.employee?.role
+                  ? formatRole(user.employee.role)
+                  : "No Role"}
               </span>
               <Button
                 variant="outline"
@@ -85,7 +88,11 @@ export function DashboardClient(): React.ReactElement {
                   <dd className="inline">{user.email}</dd>
                   <br />
                   <dt className="inline">Role: </dt>
-                  <dd className="inline">{user.role}</dd>
+                  <dd className="inline">
+                    {user.employee?.role
+                      ? formatRole(user.employee.role)
+                      : "No Role"}
+                  </dd>
                   <br />
                   <dt className="inline">User ID: </dt>
                   <dd className="inline">{user.id}</dd>

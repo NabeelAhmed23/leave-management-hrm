@@ -20,12 +20,20 @@ export interface AuthUser {
   email: string;
   firstName: string;
   lastName: string;
-  role: Role;
-  organizationId?: string;
-  organization?: {
+  employee?: {
     id: string;
-    name: string;
-    domain: string;
+    employeeId: string;
+    role: Role;
+    organizationId: string;
+    organization: {
+      id: string;
+      name: string;
+      domain: string;
+    };
+    department?: {
+      id: string;
+      name: string;
+    };
   };
 }
 
@@ -50,15 +58,25 @@ export async function authenticateUser(
   try {
     const { email, password } = credentials;
 
-    // Find user with organization data
+    // Find user with employee data
     const user = await prisma.user.findUnique({
       where: { email: email.toLowerCase() },
       include: {
-        organization: {
-          select: {
-            id: true,
-            name: true,
-            domain: true,
+        employee: {
+          include: {
+            organization: {
+              select: {
+                id: true,
+                name: true,
+                domain: true,
+              },
+            },
+            department: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
       },
@@ -76,14 +94,14 @@ export async function authenticateUser(
       throw new AppError("Invalid email or password", 401);
     }
 
-    // Prepare user data for token
+    // Prepare user data for token (using employee data if available)
     const userData: UserTokenData = {
       id: user.id,
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
-      role: user.role,
-      organizationId: user.organizationId || undefined,
+      role: user.employee?.role || Role.EMPLOYEE,
+      organizationId: user.employee?.organizationId,
     };
 
     // Generate JWT token
@@ -100,9 +118,16 @@ export async function authenticateUser(
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
-      role: user.role,
-      organizationId: user.organizationId || undefined,
-      organization: user.organization || undefined,
+      employee: user.employee
+        ? {
+            id: user.employee.id,
+            employeeId: user.employee.employeeId,
+            role: user.employee.role,
+            organizationId: user.employee.organizationId,
+            organization: user.employee.organization,
+            department: user.employee.department || undefined,
+          }
+        : undefined,
     };
 
     logger.info(`User successfully logged in: ${user.id}`);
@@ -146,11 +171,21 @@ export async function getCurrentSession(): Promise<AuthUser | null> {
     const user = await prisma.user.findUnique({
       where: { id: payload.userId },
       include: {
-        organization: {
-          select: {
-            id: true,
-            name: true,
-            domain: true,
+        employee: {
+          include: {
+            organization: {
+              select: {
+                id: true,
+                name: true,
+                domain: true,
+              },
+            },
+            department: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
       },
@@ -168,9 +203,16 @@ export async function getCurrentSession(): Promise<AuthUser | null> {
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
-      role: user.role,
-      organizationId: user.organizationId || undefined,
-      organization: user.organization || undefined,
+      employee: user.employee
+        ? {
+            id: user.employee.id,
+            employeeId: user.employee.employeeId,
+            role: user.employee.role,
+            organizationId: user.employee.organizationId,
+            organization: user.employee.organization,
+            department: user.employee.department || undefined,
+          }
+        : undefined,
     };
   } catch (error) {
     logger.error(`Session validation error: ${error}`);

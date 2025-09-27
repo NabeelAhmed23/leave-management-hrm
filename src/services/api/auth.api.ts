@@ -1,4 +1,5 @@
 import { apiClient } from "@/lib/axios";
+import { Role } from "@prisma/client";
 import {
   LoginInput,
   RegisterInput,
@@ -12,9 +13,21 @@ export interface AuthUser {
   email: string;
   firstName: string;
   lastName: string;
-  role: string;
-  organizationId: string | null;
-  createdAt: string;
+  employee?: {
+    id: string;
+    employeeId: string;
+    role: Role;
+    organizationId: string;
+    organization: {
+      id: string;
+      name: string;
+      domain: string;
+    };
+    department?: {
+      id: string;
+      name: string;
+    };
+  };
 }
 
 export interface RegisterResponse {

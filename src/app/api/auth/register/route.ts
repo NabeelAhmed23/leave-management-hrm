@@ -10,7 +10,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // Validate request body
     const validatedData = registerSchema.parse(body);
-    const { email, password, firstName, lastName, organizationId } =
+    const { email, password, firstName, lastName, organizationName, domain } =
       validatedData;
 
     // Check if user already exists
@@ -22,14 +22,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       throw new AppError("User already exists with this email", 409);
     }
 
-    // Verify organization exists (if provided)
-    if (organizationId) {
-      const organization = await prisma.organization.findUnique({
-        where: { id: organizationId },
+    // Check if domain is already taken (if provided)
+    if (domain) {
+      const existingOrganization = await prisma.organization.findUnique({
+        where: { domain },
       });
 
-      if (!organization) {
-        throw new AppError("Organization not found", 404);
+      if (existingOrganization) {
+        throw new AppError(
+          "Domain is already taken by another organization",
+          409
+        );
       }
     }
 
@@ -37,30 +40,74 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const saltRounds = 12;
     const passwordHash = await bcrypt.hash(password, saltRounds);
 
-    // Create user
-    const user = await prisma.user.create({
-      data: {
-        email,
-        firstName,
-        lastName,
-        passwordHash,
-        organizationId,
-      },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        role: true,
-        organizationId: true,
-        createdAt: true,
-      },
+    // Create user, organization, and employee in a transaction
+    const result = await prisma.$transaction(async tx => {
+      // 1. Create user first
+      const user = await tx.user.create({
+        data: {
+          email,
+          firstName,
+          lastName,
+          passwordHash,
+        },
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          createdAt: true,
+        },
+      });
+
+      // 2. Create organization
+      const organization = await tx.organization.create({
+        data: {
+          name: organizationName,
+          domain:
+            domain ||
+            `${organizationName.toLowerCase().replace(/\s+/g, "-")}-${Date.now()}`,
+          carryOverDays: 0, // Default value
+        },
+        select: {
+          id: true,
+          name: true,
+          domain: true,
+          carryOverDays: true,
+          createdAt: true,
+        },
+      });
+
+      // 3. Create employee with HR_ADMIN role
+      const employee = await tx.employee.create({
+        data: {
+          employeeId: `HR${Date.now()}`, // Generate HR employee ID
+          userId: user.id,
+          organizationId: organization.id,
+          role: "HR_ADMIN",
+          jobTitle: "HR Manager",
+          startDate: new Date(),
+          isActive: true,
+        },
+        select: {
+          id: true,
+          employeeId: true,
+          role: true,
+          jobTitle: true,
+          startDate: true,
+          isActive: true,
+          organizationId: true,
+        },
+      });
+
+      return { user, organization, employee };
     });
 
     return NextResponse.json(
       {
-        message: "User created successfully",
-        user,
+        message: "Organization and HR account created successfully",
+        user: result.user,
+        organization: result.organization,
+        employee: result.employee,
       },
       { status: 201 }
     );

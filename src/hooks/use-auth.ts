@@ -1,13 +1,16 @@
 import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { authApi, type RegisterResponse } from "@/services/api/auth.api";
+import {
+  authApi,
+  type RegisterResponse,
+  type LoginResponse,
+} from "@/services/api/auth.api";
 import {
   LoginInput,
   RegisterInput,
   ForgotPasswordInput,
   ResetPasswordInput,
 } from "@/schemas/auth.schema";
-import { AppError } from "@/utils/app-error";
 import { useAuth, type AuthUser } from "@/components/auth/auth-provider";
 
 // Query Keys
@@ -30,27 +33,11 @@ export function useLoginMutation() {
   const { setUser } = useAuth();
 
   return useMutation({
-    mutationFn: async (data: LoginInput) => {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify(data),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new AppError(result.message || "Login failed", response.status);
-      }
-
-      return result;
-    },
+    mutationFn: (data: LoginInput): Promise<LoginResponse> =>
+      authApi.login(data),
     onSuccess: data => {
       // Update auth context with user data
-      if (data.success && data.user) {
+      if (data.user) {
         setUser(data.user);
       }
 
@@ -66,20 +53,7 @@ export function useLogoutMutation() {
   const { logout } = useAuth();
 
   return useMutation({
-    mutationFn: async () => {
-      const response = await fetch("/api/auth/logout", {
-        method: "POST",
-        credentials: "include",
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new AppError(result.message || "Logout failed", response.status);
-      }
-
-      return result;
-    },
+    mutationFn: () => authApi.logout(),
     onSuccess: () => {
       // Use auth context logout (which handles redirect)
       logout();
@@ -147,7 +121,7 @@ export function useHasPermission(permission: string): boolean {
   const { user } = useAuth();
   // For now, we'll implement a basic role-based check
   // You can enhance this with more granular permissions later
-  if (!user) return false;
+  if (!user || !user.employee) return false;
 
   const rolePermissions: Record<string, string[]> = {
     SUPER_ADMIN: ["*"], // All permissions
@@ -156,6 +130,6 @@ export function useHasPermission(permission: string): boolean {
     EMPLOYEE: ["leaves:create", "leaves:read"],
   };
 
-  const userPermissions = rolePermissions[user.role] || [];
+  const userPermissions = rolePermissions[user.employee.role] || [];
   return userPermissions.includes("*") || userPermissions.includes(permission);
 }

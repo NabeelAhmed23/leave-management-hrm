@@ -15,34 +15,81 @@ datasource db {
 }
 
 model User {
-  id               String         @id @default(cuid())
-  email            String         @unique
-  firstName        String
-  lastName         String
-  passwordHash     String
-  role             Role           @default(EMPLOYEE)
-  organizationId   String?
-  organization     Organization?  @relation(fields: [organizationId], references: [id])
-  leaveRequests    LeaveRequest[]
-  approvedRequests LeaveRequest[] @relation("ApprovedBy")
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+  id           String    @id @default(cuid())
+  email        String    @unique
+  firstName    String
+  lastName     String
+  passwordHash String
+  employee     Employee?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   @@map("users")
 }
 
 model Organization {
-  id            String      @id @default(cuid())
+  id            String         @id @default(cuid())
   name          String
-  domain        String      @unique
+  domain        String         @unique
   settings      Json?
-  carryOverDays Int         @default(0)
-  users         User[]
+  carryOverDays Int            @default(0)
+  employees     Employee[]
+  departments   Department[]
   leaveTypes    LeaveType[]
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  leavePolicies LeavePolicy[]
+  holidays      Holiday[]
+  leaveComments LeaveComment[]
+  notifications Notification[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
   @@map("organizations")
+}
+
+model Employee {
+  id                 String         @id @default(cuid())
+  employeeId         String         @unique // Custom employee ID like EMP001
+  userId             String         @unique // One-to-one relationship with User
+  user               User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId     String
+  organization       Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  departmentId       String?
+  department         Department?    @relation(fields: [departmentId], references: [id])
+  role               Role           @default(EMPLOYEE)
+  jobTitle           String?
+  managerId          String?
+  manager            Employee?      @relation("EmployeeManager", fields: [managerId], references: [id])
+  subordinates       Employee[]     @relation("EmployeeManager")
+  managedDepartments Department[]   @relation("DepartmentManager")
+  startDate          DateTime
+  endDate            DateTime?
+  isActive           Boolean        @default(true)
+  leaveRequests      LeaveRequest[]
+  approvedRequests   LeaveRequest[] @relation("ApprovedBy")
+  rejectedRequests   LeaveRequest[] @relation("RejectedBy")
+  leaveBalances      LeaveBalance[]
+  leaveComments      LeaveComment[]
+  notifications      Notification[]
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  @@map("employees")
+}
+
+model Department {
+  id             String       @id @default(cuid())
+  name           String
+  description    String?
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  managerId      String?
+  manager        Employee?    @relation("DepartmentManager", fields: [managerId], references: [id])
+  employees      Employee[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([name, organizationId])
+  @@map("departments")
 }
 
 model LeaveType {
@@ -51,8 +98,10 @@ model LeaveType {
   description    String?
   maxDaysPerYear Int
   organizationId String
-  organization   Organization   @relation(fields: [organizationId], references: [id])
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   leaveRequests  LeaveRequest[]
+  leaveBalances  LeaveBalance[]
+  leavePolicies  LeavePolicy[]
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
@@ -61,24 +110,134 @@ model LeaveType {
 }
 
 model LeaveRequest {
-  id           String      @id @default(cuid())
-  userId       String
-  user         User        @relation(fields: [userId], references: [id])
-  leaveTypeId  String
-  leaveType    LeaveType   @relation(fields: [leaveTypeId], references: [id])
-  startDate    DateTime
-  endDate      DateTime
-  totalDays    Int
-  reason       String?
-  status       LeaveStatus @default(PENDING)
-  approvedById String?
-  approvedBy   User?       @relation("ApprovedBy", fields: [approvedById], references: [id])
-  approvedAt   DateTime?
-  comments     String?
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  id            String            @id @default(cuid())
+  employeeId    String
+  employee      Employee          @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveTypeId   String
+  leaveType     LeaveType         @relation(fields: [leaveTypeId], references: [id])
+  startDate     DateTime
+  endDate       DateTime
+  totalDays     Int
+  reason        String?
+  status        LeaveStatus       @default(PENDING)
+  approvedById  String?
+  approvedBy    Employee?         @relation("ApprovedBy", fields: [approvedById], references: [id])
+  approvedAt    DateTime?
+  rejectedById  String?
+  rejectedBy    Employee?         @relation("RejectedBy", fields: [rejectedById], references: [id])
+  rejectedAt    DateTime?
+  leaveComments LeaveComment[]
+  attachments   LeaveAttachment[]
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
 
   @@map("leave_requests")
+}
+
+model LeaveComment {
+  id             String       @id @default(cuid())
+  content        String
+  employeeId     String
+  employee       Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveRequestId String
+  leaveRequest   LeaveRequest @relation(fields: [leaveRequestId], references: [id], onDelete: Cascade)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  isInternal     Boolean      @default(false) // Internal comments vs public
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@map("leave_comments")
+}
+
+model LeaveBalance {
+  id            String    @id @default(cuid())
+  employeeId    String
+  employee      Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveTypeId   String
+  leaveType     LeaveType @relation(fields: [leaveTypeId], references: [id])
+  year          Int
+  totalDays     Int // Total days allocated for the year
+  usedDays      Int       @default(0) // Days already used
+  availableDays Int // Computed: totalDays - usedDays
+  carriedOver   Int       @default(0) // Days carried from previous year
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([employeeId, leaveTypeId, year])
+  @@map("leave_balances")
+}
+
+model LeavePolicy {
+  id                  String       @id @default(cuid())
+  organizationId      String
+  organization        Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  leaveTypeId         String
+  leaveType           LeaveType    @relation(fields: [leaveTypeId], references: [id])
+  name                String
+  description         String?
+  maxDaysPerYear      Int
+  maxConsecutiveDays  Int?
+  minAdvanceNotice    Int          @default(0) // Days in advance
+  requiresApproval    Boolean      @default(true)
+  allowCarryOver      Boolean      @default(false)
+  maxCarryOverDays    Int?
+  probationPeriodDays Int? // No leave during probation
+  gender              Gender? // For maternity/paternity leave
+  isActive            Boolean      @default(true)
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  @@unique([organizationId, leaveTypeId])
+  @@map("leave_policies")
+}
+
+model Holiday {
+  id             String       @id @default(cuid())
+  name           String
+  date           DateTime
+  isRecurring    Boolean      @default(false) // Annual holidays
+  countryCode    String? // ISO country code
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([organizationId, name, date])
+  @@map("holidays")
+}
+
+model LeaveAttachment {
+  id             String       @id @default(cuid())
+  filename       String
+  originalName   String
+  mimeType       String
+  fileSize       Int
+  filePath       String
+  leaveRequestId String
+  leaveRequest   LeaveRequest @relation(fields: [leaveRequestId], references: [id], onDelete: Cascade)
+  uploadedAt     DateTime     @default(now())
+
+  @@map("leave_attachments")
+}
+
+model Notification {
+  id             String           @id @default(cuid())
+  title          String
+  message        String
+  type           NotificationType
+  employeeId     String
+  employee       Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  organizationId String
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  isRead         Boolean          @default(false)
+  readAt         DateTime?
+  actionUrl      String? // URL to navigate when clicked
+  metadata       Json? // Additional data
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@map("notifications")
 }
 
 enum Role {
@@ -107,3 +266,17 @@ enum LeaveStatus {
   CANCELLED
 }
 
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum NotificationType {
+  LEAVE_REQUEST_SUBMITTED
+  LEAVE_REQUEST_APPROVED
+  LEAVE_REQUEST_REJECTED
+  LEAVE_REQUEST_CANCELLED
+  LEAVE_BALANCE_LOW
+  SYSTEM_ANNOUNCEMENT
+}

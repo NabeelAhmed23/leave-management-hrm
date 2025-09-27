@@ -59,10 +59,11 @@ export function RegisterForm(): React.ReactElement {
             </svg>
           </div>
           <h1 className="text-2xl font-bold text-green-600">
-            Registration Successful!
+            Organization Created Successfully!
           </h1>
           <p className="text-muted-foreground">
-            Your account has been created. Redirecting to login...
+            Your organization and HR account have been created. Redirecting to
+            login...
           </p>
         </div>
       </div>
@@ -123,6 +124,37 @@ export function RegisterForm(): React.ReactElement {
         </div>
 
         <div className="space-y-2">
+          <Label htmlFor="organizationName">Organization Name</Label>
+          <Input
+            id="organizationName"
+            placeholder="Acme Corporation"
+            {...register("organizationName")}
+            className={errors.organizationName ? "border-red-500" : ""}
+          />
+          {errors.organizationName && (
+            <p className="text-sm text-red-600">
+              {errors.organizationName.message}
+            </p>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="domain">Domain (Optional)</Label>
+          <Input
+            id="domain"
+            placeholder="example.com"
+            {...register("domain")}
+            className={errors.domain ? "border-red-500" : ""}
+          />
+          {errors.domain && (
+            <p className="text-sm text-red-600">{errors.domain.message}</p>
+          )}
+          <div className="text-muted-foreground text-xs">
+            Leave blank to auto-generate a domain for your organization.
+          </div>
+        </div>
+
+        <div className="space-y-2">
           <Label htmlFor="password">Password</Label>
           <div className="relative">
             <Input
@@ -161,10 +193,10 @@ export function RegisterForm(): React.ReactElement {
           {registerMutation.isPending ? (
             <>
               <Spinner size="sm" className="mr-2" />
-              Creating account...
+              Creating organization...
             </>
           ) : (
-            "Create Account"
+            "Register"
           )}
         </Button>
       </form>

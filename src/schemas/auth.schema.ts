@@ -42,7 +42,17 @@ export const registerSchema = z.object({
       /^[a-zA-Z\s'-]+$/,
       "Last name can only contain letters, spaces, hyphens, and apostrophes"
     ),
-  organizationId: z.string().cuid().optional(),
+  organizationName: z
+    .string()
+    .min(1, "Organization name is required")
+    .max(100, "Organization name must not exceed 100 characters"),
+  domain: z
+    .string()
+    .regex(
+      /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/,
+      "Please enter a valid domain name"
+    )
+    .optional(),
 });
 
 // Password reset request schema

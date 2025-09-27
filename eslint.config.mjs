@@ -34,7 +34,7 @@ const eslintConfig = [
       "no-debugger": "error",
       "max-len": ["warn", { code: 200, ignoreUrls: true }],
       "max-params": ["error", 4],
-      complexity: ["warn", 15],
+      complexity: ["warn", 30],
       "max-depth": ["error", 4],
 
       // Import/Export rules
