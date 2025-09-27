@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { AuthLayout } from "@/components/auth/auth-layout";
+import { GuestLayout } from "@/components/auth/guest-layout";
 import { ResetPasswordForm } from "@/components/auth/reset-password-form";
 
 interface ResetPasswordPageProps {
@@ -42,10 +42,13 @@ export default async function ResetPasswordPage({
   searchParams,
 }: ResetPasswordPageProps): Promise<React.ReactElement> {
   return (
-    <AuthLayout title="Reset Password" subtitle="Enter your new password below">
+    <GuestLayout
+      title="Reset Password"
+      subtitle="Enter your new password below"
+    >
       <Suspense fallback={<div>Loading...</div>}>
         <ResetPasswordContent searchParams={searchParams} />
       </Suspense>
-    </AuthLayout>
+    </GuestLayout>
   );
 }
