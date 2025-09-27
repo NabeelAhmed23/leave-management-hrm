@@ -48,7 +48,7 @@ model Organization {
 
 model Employee {
   id                 String         @id @default(cuid())
-  employeeId         String         @unique // Custom employee ID like EMP001
+  employeeNumber     String         @unique // Custom employee ID like EMP001
   userId             String         @unique // One-to-one relationship with User
   user               User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   organizationId     String
