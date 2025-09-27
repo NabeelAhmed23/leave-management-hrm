@@ -108,7 +108,7 @@ export class AuthService {
       // 3. Create employee with HR_ADMIN role
       const employee = await tx.employee.create({
         data: {
-          employeeId: `HR${Date.now()}`,
+          employeeNumber: `HR${Date.now()}`,
           userId: user.id,
           organizationId: organization.id,
           role: "HR_ADMIN",

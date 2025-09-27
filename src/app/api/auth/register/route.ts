@@ -80,7 +80,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       // 3. Create employee with HR_ADMIN role
       const employee = await tx.employee.create({
         data: {
-          employeeId: `HR${Date.now()}`, // Generate HR employee ID
+          employeeNumber: `HR${Date.now()}`, // Generate HR employee ID
           userId: user.id,
           organizationId: organization.id,
           role: "HR_ADMIN",
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         },
         select: {
           id: true,
-          employeeId: true,
+          employeeNumber: true,
           role: true,
           jobTitle: true,
           startDate: true,

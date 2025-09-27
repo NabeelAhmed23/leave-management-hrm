@@ -22,7 +22,7 @@ export interface AuthUser {
   lastName: string;
   employee?: {
     id: string;
-    employeeId: string;
+    employeeNumber: string;
     role: Role;
     organizationId: string;
     organization: {
@@ -121,7 +121,7 @@ export async function authenticateUser(
       employee: user.employee
         ? {
             id: user.employee.id,
-            employeeId: user.employee.employeeId,
+            employeeNumber: user.employee.employeeNumber,
             role: user.employee.role,
             organizationId: user.employee.organizationId,
             organization: user.employee.organization,
@@ -206,7 +206,7 @@ export async function getCurrentSession(): Promise<AuthUser | null> {
       employee: user.employee
         ? {
             id: user.employee.id,
-            employeeId: user.employee.employeeId,
+            employeeNumber: user.employee.employeeNumber,
             role: user.employee.role,
             organizationId: user.employee.organizationId,
             organization: user.employee.organization,

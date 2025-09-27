@@ -28,20 +28,21 @@ model User {
 }
 
 model Organization {
-  id            String         @id @default(cuid())
-  name          String
-  domain        String         @unique
-  settings      Json?
-  carryOverDays Int            @default(0)
-  employees     Employee[]
-  departments   Department[]
-  leaveTypes    LeaveType[]
-  leavePolicies LeavePolicy[]
-  holidays      Holiday[]
-  leaveComments LeaveComment[]
-  notifications Notification[]
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id               String         @id @default(cuid())
+  name             String
+  domain           String         @unique
+  settings         Json?
+  carryOverDays    Int            @default(0)
+  leaveRefreshDate DateTime? // Date when leave balances refresh (typically Jan 1st)
+  employees        Employee[]
+  departments      Department[]
+  leaveTypes       LeaveType[]
+  leavePolicies    LeavePolicy[]
+  holidays         Holiday[]
+  leaveComments    LeaveComment[]
+  notifications    Notification[]
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
 
   @@map("organizations")
 }

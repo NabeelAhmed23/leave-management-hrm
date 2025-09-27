@@ -15,7 +15,7 @@ export interface AuthUser {
   lastName: string;
   employee?: {
     id: string;
-    employeeId: string;
+    employeeNumber: string;
     role: Role;
     organizationId: string;
     organization: {

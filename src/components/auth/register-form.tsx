@@ -193,7 +193,7 @@ export function RegisterForm(): React.ReactElement {
           {registerMutation.isPending ? (
             <>
               <Spinner size="sm" className="mr-2" />
-              Creating organization...
+              Registering...
             </>
           ) : (
             "Register"

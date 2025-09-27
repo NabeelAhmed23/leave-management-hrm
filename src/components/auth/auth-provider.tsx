@@ -1,7 +1,11 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Role } from "@prisma/client";
+import axios from "axios";
+import { apiClient } from "@/lib/axios";
+import { AppError } from "@/utils/app-error";
 
 // Auth User Interface
 export interface AuthUser {
@@ -11,7 +15,7 @@ export interface AuthUser {
   lastName: string;
   employee?: {
     id: string;
-    employeeId: string;
+    employeeNumber: string;
     role: Role;
     organizationId: string;
     organization: {
@@ -26,6 +30,13 @@ export interface AuthUser {
   };
 }
 
+// API Response Types
+interface SessionResponse {
+  success: boolean;
+  user?: AuthUser;
+  message?: string;
+}
+
 // Auth Context Interface
 interface AuthContextType {
   user: AuthUser | null;
@@ -33,6 +44,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   setUser: (user: AuthUser | null) => void;
   logout: () => void;
+  refetchSession: () => void;
 }
 
 // Create Auth Context
@@ -43,50 +55,87 @@ interface AuthProviderProps {
   children: React.ReactNode;
 }
 
+// Create a separate axios instance for session checks without interceptors
+const sessionClient = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_API_URL || "/api",
+  timeout: 10000,
+  headers: {
+    "Content-Type": "application/json",
+  },
+  withCredentials: true,
+});
+
+// API Functions
+const fetchSession = async (): Promise<SessionResponse> => {
+  try {
+    // Use session client without interceptors to avoid redirect loops
+    const response = await sessionClient.get<SessionResponse>("/auth/session");
+    return response.data;
+  } catch (error) {
+    // Handle any errors gracefully without throwing
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 401) {
+        return { success: false, message: "Not authenticated" };
+      }
+    }
+    // For any other errors, return a failed session response
+    return { success: false, message: "Session check failed" };
+  }
+};
+
+const logoutUser = async (): Promise<void> => {
+  try {
+    await apiClient.post("/auth/logout");
+  } catch (error) {
+    throw AppError.from(error);
+  }
+};
+
 export function AuthProvider({
   children,
 }: AuthProviderProps): React.ReactElement {
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  // Check for existing session on mount
+  // Session query using React Query
+  const {
+    data: sessionData,
+    isLoading,
+    refetch: refetchSession,
+  } = useQuery({
+    queryKey: ["auth-session"],
+    queryFn: fetchSession,
+    staleTime: 1000 * 60 * 10, // 10 minutes
+    gcTime: 1000 * 60 * 30, // 30 minutes
+    retry: false, // Don't retry auth checks
+    refetchOnWindowFocus: false, // Disable automatic refetch on focus
+    refetchOnReconnect: false, // Disable automatic refetch on reconnect
+    refetchOnMount: "always", // Only refetch when component mounts
+  });
+
+  // Logout mutation
+  const logoutMutation = useMutation({
+    mutationFn: logoutUser,
+    onSettled: () => {
+      // Always clear local state regardless of success or failure
+      queryClient.clear();
+      setUser(null);
+      // Use replace to prevent back button issues
+      window.location.replace("/login");
+    },
+  });
+
+  // Update user state when session data changes
   useEffect(() => {
-    checkSession();
-  }, []);
-
-  const checkSession = async (): Promise<void> => {
-    try {
-      const response = await fetch("/api/auth/session", {
-        credentials: "include",
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.user) {
-          setUser(data.user);
-        }
-      }
-    } catch {
-      // Session check failed, user is not authenticated
+    if (sessionData?.success && sessionData.user) {
+      setUser(sessionData.user);
+    } else {
       setUser(null);
-    } finally {
-      setIsLoading(false);
     }
-  };
+  }, [sessionData]);
 
-  const logout = async (): Promise<void> => {
-    try {
-      await fetch("/api/auth/logout", {
-        method: "POST",
-        credentials: "include",
-      });
-    } catch {
-      // Logout request failed, but we'll clear local state anyway
-    } finally {
-      setUser(null);
-      // Optionally redirect to login page
-      window.location.href = "/login";
-    }
+  const logout = (): void => {
+    logoutMutation.mutate();
   };
 
   const contextValue: AuthContextType = {
@@ -95,6 +144,9 @@ export function AuthProvider({
     isAuthenticated: !!user,
     setUser,
     logout,
+    refetchSession: () => {
+      refetchSession();
+    },
   };
 
   return (
