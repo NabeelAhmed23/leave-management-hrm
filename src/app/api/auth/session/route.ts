@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getCurrentSession } from "@/services/auth-server.service";
 import { AppError } from "@/utils/app-error";
 import { logger } from "@/services/logger.service";
 
-export async function GET(request: NextRequest): Promise<NextResponse> {
+export async function GET(): Promise<NextResponse> {
   try {
     // Get current session from cookies
     const user = await getCurrentSession();

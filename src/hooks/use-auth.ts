@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { authApi, type RegisterResponse } from "@/services/api/auth.api";
 import {
@@ -103,7 +103,8 @@ export function useResetPasswordMutation() {
   const router = useRouter();
 
   return useMutation({
-    mutationFn: (data: ResetPasswordInput) => authApi.resetPassword(data),
+    mutationFn: (data: ResetPasswordInput & { email?: string }) =>
+      authApi.resetPassword(data),
     onSuccess: () => {
       router.push("/login");
     },

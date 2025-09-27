@@ -21,7 +21,7 @@ const eslintConfig = [
       "coverage/**",
       "dist/**",
       "prisma/migrations/**",
-      "generated/**"
+      "generated/**",
     ],
   },
   {

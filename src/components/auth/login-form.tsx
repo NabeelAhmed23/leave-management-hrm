@@ -13,13 +13,7 @@ import { loginSchema, type LoginInput } from "@/schemas/auth.schema";
 import { useLoginMutation } from "@/hooks/use-auth";
 import { AppError } from "@/utils/app-error";
 
-interface LoginFormProps {
-  callbackUrl?: string;
-}
-
-export function LoginForm({
-  callbackUrl = "/",
-}: LoginFormProps): React.ReactElement {
+export function LoginForm(): React.ReactElement {
   const [showPassword, setShowPassword] = useState(false);
   const loginMutation = useLoginMutation();
 
@@ -61,7 +55,15 @@ export function LoginForm({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
+          <div className="flex items-center justify-between">
+            <Label htmlFor="password">Password</Label>
+            <Link
+              href="/forgot-password"
+              className="text-primary text-sm hover:underline"
+            >
+              Forgot password?
+            </Link>
+          </div>
           <div className="relative">
             <Input
               id="password"

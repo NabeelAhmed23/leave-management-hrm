@@ -11,16 +11,12 @@ const authRoutes = [
   "/auth/invite",
 ];
 
-const publicRoutes = ["/"];
-
 // Helper function to check route type
 function getRouteType(pathname: string): "auth" | "protected" | "public" {
   if (authRoutes.some(route => pathname.startsWith(route))) {
     return "auth";
   }
-  if (publicRoutes.some(route => pathname === route)) {
-    return "public";
-  }
+
   return "protected";
 }
 

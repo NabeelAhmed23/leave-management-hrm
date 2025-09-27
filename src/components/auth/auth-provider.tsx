@@ -58,7 +58,7 @@ export function AuthProvider({
           setUser(data.user);
         }
       }
-    } catch (error) {
+    } catch {
       // Session check failed, user is not authenticated
       setUser(null);
     } finally {
@@ -72,7 +72,7 @@ export function AuthProvider({
         method: "POST",
         credentials: "include",
       });
-    } catch (error) {
+    } catch {
       // Logout request failed, but we'll clear local state anyway
     } finally {
       setUser(null);

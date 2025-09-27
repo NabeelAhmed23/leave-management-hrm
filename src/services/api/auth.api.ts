@@ -71,11 +71,16 @@ export const authApi = {
 
   // Reset password with token
   resetPassword: async (
-    data: ResetPasswordInput
+    data: ResetPasswordInput & { email?: string }
   ): Promise<ResetPasswordResponse> => {
+    const { email, ...resetData } = data;
+    const url = email
+      ? `/auth/reset-password?email=${encodeURIComponent(email)}`
+      : "/auth/reset-password";
+
     const response = await apiClient.post<ResetPasswordResponse>(
-      "/auth/reset-password",
-      data
+      url,
+      resetData
     );
     return response.data;
   },

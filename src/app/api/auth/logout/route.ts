@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { logoutUser } from "@/services/auth-server.service";
 import { AppError } from "@/utils/app-error";
 import { logger } from "@/services/logger.service";
 
-export async function POST(request: NextRequest): Promise<NextResponse> {
+export async function POST(): Promise<NextResponse> {
   try {
     logger.info("Logout request received");
 
@@ -39,6 +39,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 }
 
 // Allow GET requests for logout as well (for simple logout links)
-export async function GET(request: NextRequest): Promise<NextResponse> {
-  return POST(request);
+export async function GET(): Promise<NextResponse> {
+  return POST();
 }

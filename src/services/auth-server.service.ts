@@ -1,8 +1,10 @@
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/services/logger.service";
 import { AppError } from "@/utils/app-error";
+import { emailService } from "@/services/email.service";
 import {
   generateToken,
   verifyToken,
@@ -222,6 +224,190 @@ export function verifyAnyPermission(
   return requiredPermissions.some(permission =>
     userPayload.permissions.includes(permission)
   );
+}
+
+/**
+ * Generate secure reset token
+ */
+function generateResetToken(): string {
+  return crypto.randomBytes(32).toString("hex");
+}
+
+/**
+ * Hash reset token for database storage
+ */
+function hashToken(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+/**
+ * Generate password reset token and send email
+ */
+export async function initiatePasswordReset(
+  email: string
+): Promise<{ message: string }> {
+  try {
+    const normalizedEmail = email.toLowerCase();
+
+    // Find user by email
+    const user = await prisma.user.findUnique({
+      where: { email: normalizedEmail },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+      },
+    });
+
+    // Always return success message for security (don't reveal if email exists)
+    const successMessage =
+      "If an account with that email exists, you will receive a password reset link";
+
+    if (!user) {
+      logger.warn(
+        `Password reset attempted for non-existent email: ${normalizedEmail}`
+      );
+      return { message: successMessage };
+    }
+
+    // Delete any existing reset tokens for this email
+    await prisma.passwordResetToken.deleteMany({
+      where: { email: normalizedEmail },
+    });
+
+    // Generate new reset token
+    const resetToken = generateResetToken();
+    const hashedToken = hashToken(resetToken);
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
+
+    // Store hashed token in database
+    await prisma.passwordResetToken.create({
+      data: {
+        email: normalizedEmail,
+        token: hashedToken,
+        expiresAt,
+        used: false,
+      },
+    });
+
+    // Generate reset URL
+    const resetUrl = `${process.env.APP_URL}/reset-password?token=${resetToken}&email=${encodeURIComponent(normalizedEmail)}`;
+
+    // Send reset email
+    await emailService.sendPasswordResetEmail(
+      normalizedEmail,
+      resetUrl,
+      user.firstName
+    );
+
+    logger.info(`Password reset token generated for user: ${user.id}`);
+
+    return { message: successMessage };
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
+
+    logger.error(`Password reset initiation error: ${error}`);
+    throw new AppError("Failed to initiate password reset", 500);
+  }
+}
+
+/**
+ * Reset password using token
+ */
+export async function resetPassword(
+  token: string,
+  email: string,
+  newPassword: string
+): Promise<{ message: string }> {
+  try {
+    const normalizedEmail = email.toLowerCase();
+    const hashedToken = hashToken(token);
+
+    // Find valid reset token
+    const resetTokenRecord = await prisma.passwordResetToken.findFirst({
+      where: {
+        email: normalizedEmail,
+        token: hashedToken,
+        used: false,
+        expiresAt: {
+          gt: new Date(),
+        },
+      },
+    });
+
+    if (!resetTokenRecord) {
+      throw new AppError("Invalid or expired reset token", 400);
+    }
+
+    // Find user
+    const user = await prisma.user.findUnique({
+      where: { email: normalizedEmail },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+      },
+    });
+
+    if (!user) {
+      throw new AppError("User not found", 404);
+    }
+
+    // Hash new password
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+
+    // Update user password and mark token as used
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: user.id },
+        data: { passwordHash },
+      }),
+      prisma.passwordResetToken.update({
+        where: { id: resetTokenRecord.id },
+        data: { used: true },
+      }),
+    ]);
+
+    // Send confirmation email
+    await emailService.sendPasswordResetConfirmationEmail(
+      normalizedEmail,
+      user.firstName
+    );
+
+    logger.info(`Password successfully reset for user: ${user.id}`);
+
+    return { message: "Password has been successfully reset" };
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
+
+    logger.error(`Password reset error: ${error}`);
+    throw new AppError("Failed to reset password", 500);
+  }
+}
+
+/**
+ * Clean up expired reset tokens (should be called periodically)
+ */
+export async function cleanupExpiredTokens(): Promise<void> {
+  try {
+    const result = await prisma.passwordResetToken.deleteMany({
+      where: {
+        OR: [{ expiresAt: { lt: new Date() } }, { used: true }],
+      },
+    });
+
+    if (result.count > 0) {
+      logger.info(`Cleaned up ${result.count} expired/used reset tokens`);
+    }
+  } catch (error) {
+    logger.error(`Token cleanup error: ${error}`);
+  }
 }
 
 /**
