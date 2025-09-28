@@ -2,6 +2,7 @@
 
 import { useAuth } from "@/components/auth/auth-provider";
 import { formatRole } from "@/utils/format-role";
+import { Card } from "@/components/ui/card";
 
 export function DashboardClient(): React.ReactElement | null {
   const { user } = useAuth();
@@ -13,39 +14,39 @@ export function DashboardClient(): React.ReactElement | null {
   return (
     <div className="space-y-6">
       {/* Welcome Section */}
-      <div className="rounded-lg bg-white p-6 shadow-sm">
+      <Card className="p-6">
         <h2 className="text-2xl font-bold text-gray-900">
           Welcome back, {user.firstName}!
         </h2>
         <p className="mt-2 text-gray-600">
           Here is an overview of your leave management dashboard.
         </p>
-      </div>
+      </Card>
 
       {/* Quick Stats */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-lg bg-white p-6 shadow-sm">
+        <Card className="p-6">
           <h3 className="text-sm font-medium text-gray-500">Available Leave</h3>
           <p className="mt-2 text-3xl font-bold text-green-600">12 days</p>
-        </div>
-        <div className="rounded-lg bg-white p-6 shadow-sm">
+        </Card>
+        <Card className="p-6">
           <h3 className="text-sm font-medium text-gray-500">
             Pending Requests
           </h3>
           <p className="mt-2 text-3xl font-bold text-yellow-600">2</p>
-        </div>
-        <div className="rounded-lg bg-white p-6 shadow-sm">
+        </Card>
+        <Card className="p-6">
           <h3 className="text-sm font-medium text-gray-500">Used This Year</h3>
           <p className="mt-2 text-3xl font-bold text-blue-600">8 days</p>
-        </div>
-        <div className="rounded-lg bg-white p-6 shadow-sm">
+        </Card>
+        <Card className="p-6">
           <h3 className="text-sm font-medium text-gray-500">Team on Leave</h3>
           <p className="mt-2 text-3xl font-bold text-purple-600">3</p>
-        </div>
+        </Card>
       </div>
 
       {/* User Information */}
-      <div className="rounded-lg bg-white p-6 shadow-sm">
+      <Card className="p-6">
         <h3 className="text-lg font-medium text-gray-900">
           Account Information
         </h3>
@@ -75,10 +76,10 @@ export function DashboardClient(): React.ReactElement | null {
             <dd className="mt-1 text-sm text-gray-900">{user.id}</dd>
           </div>
         </dl>
-      </div>
+      </Card>
 
       {/* Quick Actions */}
-      <div className="rounded-lg bg-white p-6 shadow-sm">
+      <Card className="p-6">
         <h3 className="text-lg font-medium text-gray-900">Quick Actions</h3>
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
           <button className="rounded-lg border border-gray-300 p-4 text-left hover:bg-gray-50">
@@ -100,7 +101,7 @@ export function DashboardClient(): React.ReactElement | null {
             </p>
           </button>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }
