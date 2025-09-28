@@ -77,6 +77,7 @@ const navigation: NavItem[] = [
     title: "Settings",
     href: "/dashboard/settings",
     icon: Settings,
+    roles: ["HR_ADMIN", "SUPER_ADMIN"],
   },
 ];
 

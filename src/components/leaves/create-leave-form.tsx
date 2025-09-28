@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Form,
   FormControl,
@@ -30,13 +31,19 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
-import { LeaveType, LeaveBalance } from "@/types/leave";
-import { CreateLeaveRequestDTO } from "@/types/leave.types";
-import { useCreateLeaveRequest } from "@/services/api/leave.api";
+import {
+  CreateLeaveRequestDTO,
+  LeaveBalanceCheckResult,
+} from "@/types/leave.types";
+import {
+  useCreateLeaveRequest,
+  useCheckLeaveBalance,
+} from "@/services/api/leave.api";
 import { format, differenceInDays } from "date-fns";
-import { CalendarIcon, AlertCircle, CheckCircle } from "lucide-react";
+import { CalendarIcon, AlertCircle, CheckCircle, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 const createLeaveSchema = z
   .object({
@@ -61,24 +68,32 @@ const createLeaveSchema = z
 
 type CreateLeaveFormData = z.infer<typeof createLeaveSchema>;
 
+// Simple leave type interface for the form
+interface SimpleLeaveType {
+  id: string;
+  name: string;
+  maxDaysPerYear: number;
+}
+
 interface CreateLeaveFormProps {
-  leaveTypes: LeaveType[];
-  leaveBalances: LeaveBalance[];
+  leaveTypes: SimpleLeaveType[];
   onSuccess?: () => void;
 }
 
 export function CreateLeaveForm({
   leaveTypes,
-  leaveBalances,
   onSuccess,
 }: CreateLeaveFormProps): React.ReactElement {
   const router = useRouter();
-  const [selectedLeaveType, setSelectedLeaveType] = useState<LeaveType | null>(
-    null
-  );
+  const [selectedLeaveType, setSelectedLeaveType] =
+    useState<SimpleLeaveType | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [balanceCheckResult, setBalanceCheckResult] =
+    useState<LeaveBalanceCheckResult | null>(null);
+  const [isCheckingBalance, setIsCheckingBalance] = useState(false);
 
   const createLeaveRequestMutation = useCreateLeaveRequest();
+  const checkBalanceMutation = useCheckLeaveBalance();
 
   const form = useForm<CreateLeaveFormData>({
     resolver: zodResolver(createLeaveSchema),
@@ -96,26 +111,41 @@ export function CreateLeaveForm({
     return differenceInDays(endDate, startDate) + 1;
   };
 
-  const getLeaveBalance = (): LeaveBalance | null => {
-    if (!leaveTypeId) return null;
-    return (
-      leaveBalances.find(balance => balance.leaveTypeId === leaveTypeId) || null
-    );
-  };
+  // Effect to trigger balance check when form values change
+  useEffect(() => {
+    const timeoutId = setTimeout(async () => {
+      if (leaveTypeId && startDate && endDate) {
+        setIsCheckingBalance(true);
+        try {
+          const result = await checkBalanceMutation.mutateAsync({
+            leaveTypeId,
+            startDate,
+            endDate,
+          });
+          setBalanceCheckResult(result);
+        } catch (error) {
+          console.error("Balance check failed:", error);
+          setBalanceCheckResult(null);
+          toast.error("Failed to check leave balance. Please try again.");
+        } finally {
+          setIsCheckingBalance(false);
+        }
+      } else {
+        setBalanceCheckResult(null);
+      }
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [leaveTypeId, startDate, endDate]);
 
   const getTotalDays = (): number => {
     return calculateDays();
   };
 
-  const getAvailableDays = (): number => {
-    const balance = getLeaveBalance();
-    return balance ? balance.availableDays : 0;
-  };
-
   const canSubmit = (): boolean => {
     const totalDays = getTotalDays();
-    const availableDays = getAvailableDays();
-    return totalDays > 0 && totalDays <= availableDays;
+    // Can submit if we have a balance check result and it's allowed
+    return totalDays > 0 && balanceCheckResult?.isAllowed === true;
   };
 
   const handleLeaveTypeChange = (value: string): void => {
@@ -147,9 +177,7 @@ export function CreateLeaveForm({
     });
   };
 
-  const balance = getLeaveBalance();
   const totalDays = getTotalDays();
-  const availableDays = getAvailableDays();
   const isValid = canSubmit();
   const isSubmitting = createLeaveRequestMutation.isPending;
 
@@ -177,13 +205,7 @@ export function CreateLeaveForm({
                   <SelectContent>
                     {leaveTypes.map(type => (
                       <SelectItem key={type.id} value={type.id}>
-                        <div className="flex items-center space-x-2">
-                          <div
-                            className="h-3 w-3 rounded-full"
-                            style={{ backgroundColor: type.color }}
-                          />
-                          <span>{type.name}</span>
-                        </div>
+                        {type.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -192,17 +214,6 @@ export function CreateLeaveForm({
               </FormItem>
             )}
           />
-
-          {selectedLeaveType && (
-            <div className="mt-4 rounded-lg bg-gray-50 p-4">
-              <p className="text-sm text-gray-600">
-                {selectedLeaveType.description}
-              </p>
-              <p className="mt-1 text-sm text-gray-500">
-                Maximum {selectedLeaveType.maxDaysPerYear} days per year
-              </p>
-            </div>
-          )}
         </Card>
 
         {/* Date Selection */}
@@ -312,58 +323,113 @@ export function CreateLeaveForm({
           )}
         </Card>
 
-        {/* Leave Balance */}
-        {balance && (
+        {/* Balance Check Results */}
+        {(isCheckingBalance || balanceCheckResult) && (
           <Card className="p-6">
-            <h3 className="mb-4 text-lg font-medium">Leave Balance</h3>
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-              <div className="text-center">
-                <p className="text-2xl font-bold text-blue-600">
-                  {balance.totalDays}
-                </p>
-                <p className="text-sm text-gray-500">Total Days</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold text-red-600">
-                  {balance.usedDays}
-                </p>
-                <p className="text-sm text-gray-500">Used Days</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold text-green-600">
-                  {balance.availableDays}
-                </p>
-                <p className="text-sm text-gray-500">Available</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold text-purple-600">
-                  {balance.carriedOver}
-                </p>
-                <p className="text-sm text-gray-500">Carried Over</p>
-              </div>
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-medium">Leave Balance Check</h3>
+              {isCheckingBalance && (
+                <div className="flex items-center space-x-2 text-sm text-gray-600">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Checking balance...</span>
+                </div>
+              )}
             </div>
 
-            {/* Validation Message */}
-            {totalDays > 0 && (
-              <div
-                className={cn(
-                  "mt-4 flex items-center space-x-2 rounded-lg p-3",
-                  isValid
-                    ? "bg-green-50 text-green-800"
-                    : "bg-red-50 text-red-800"
+            {balanceCheckResult && !isCheckingBalance && (
+              <>
+                {/* Balance Information */}
+                {balanceCheckResult.currentBalance && (
+                  <div className="mb-4 grid grid-cols-2 gap-4 md:grid-cols-4">
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-blue-600">
+                        {balanceCheckResult.currentBalance.totalDays}
+                      </p>
+                      <p className="text-sm text-gray-500">Total Days</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-red-600">
+                        {balanceCheckResult.currentBalance.usedDays}
+                      </p>
+                      <p className="text-sm text-gray-500">Used Days</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-green-600">
+                        {balanceCheckResult.currentBalance.availableDays}
+                      </p>
+                      <p className="text-sm text-gray-500">Available</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-purple-600">
+                        {balanceCheckResult.currentBalance.carriedOver}
+                      </p>
+                      <p className="text-sm text-gray-500">Carried Over</p>
+                    </div>
+                  </div>
                 )}
-              >
-                {isValid ? (
-                  <CheckCircle className="h-4 w-4" />
-                ) : (
-                  <AlertCircle className="h-4 w-4" />
+
+                {/* Request Status */}
+                <div
+                  className={cn(
+                    "mb-4 flex items-center space-x-2 rounded-lg p-3",
+                    balanceCheckResult.isAllowed
+                      ? "bg-green-50 text-green-800"
+                      : "bg-red-50 text-red-800"
+                  )}
+                >
+                  {balanceCheckResult.isAllowed ? (
+                    <CheckCircle className="h-4 w-4" />
+                  ) : (
+                    <AlertCircle className="h-4 w-4" />
+                  )}
+                  <span className="text-sm font-medium">
+                    {balanceCheckResult.isAllowed
+                      ? `✓ Request approved: You can request ${balanceCheckResult.requestedDays} ${balanceCheckResult.requestedDays === 1 ? "day" : "days"}`
+                      : `✗ Request not allowed: ${balanceCheckResult.requestedDays} ${balanceCheckResult.requestedDays === 1 ? "day" : "days"} requested`}
+                  </span>
+                </div>
+
+                {/* Conflicts */}
+                {balanceCheckResult.conflicts.length > 0 && (
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-medium text-red-800">
+                      Issues found:
+                    </h4>
+                    {balanceCheckResult.conflicts.map((conflict, index) => (
+                      <div
+                        key={index}
+                        className="flex items-start space-x-2 text-sm text-red-700"
+                      >
+                        <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                        <span>{conflict.message}</span>
+                      </div>
+                    ))}
+                  </div>
                 )}
-                <span className="text-sm">
-                  {isValid
-                    ? `You have sufficient leave balance for ${totalDays} ${totalDays === 1 ? "day" : "days"}.`
-                    : `Insufficient leave balance. You need ${totalDays} ${totalDays === 1 ? "day" : "days"} but only have ${availableDays} available.`}
-                </span>
-              </div>
+
+                {/* Overlapping Leaves */}
+                {balanceCheckResult.overlappingLeaves.length > 0 && (
+                  <div className="mt-4 rounded-lg bg-amber-50 p-3">
+                    <h4 className="mb-2 text-sm font-medium text-amber-800">
+                      Overlapping leave requests:
+                    </h4>
+                    <div className="space-y-1">
+                      {balanceCheckResult.overlappingLeaves.map(
+                        (leave, index) => (
+                          <div key={index} className="text-sm text-amber-700">
+                            {leave.leaveType.name}:{" "}
+                            {format(new Date(leave.startDate), "MMM dd")} -{" "}
+                            {format(new Date(leave.endDate), "MMM dd, yyyy")}
+                            <Badge variant="outline" className="ml-2">
+                              {leave.status}
+                            </Badge>
+                          </div>
+                        )
+                      )}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </Card>
         )}

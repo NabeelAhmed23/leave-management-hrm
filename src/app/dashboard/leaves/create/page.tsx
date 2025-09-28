@@ -1,114 +1,121 @@
 "use client";
 
-import { useState } from "react";
 import { CreateLeaveForm } from "@/components/leaves/create-leave-form";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, Calendar, FileText, Clock } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  ArrowLeft,
+  Calendar,
+  FileText,
+  Clock,
+  AlertCircle,
+} from "lucide-react";
 import Link from "next/link";
-import { LeaveType, LeaveBalance } from "@/types/leave";
-
-// Mock data for demonstration
-const mockLeaveTypes: LeaveType[] = [
-  {
-    id: "1",
-    name: "Annual Leave",
-    description: "Yearly vacation days for rest and recreation",
-    maxDaysPerYear: 25,
-    color: "#3B82F6",
-  },
-  {
-    id: "2",
-    name: "Sick Leave",
-    description: "Medical leave for illness or health-related issues",
-    maxDaysPerYear: 10,
-    color: "#EF4444",
-  },
-  {
-    id: "3",
-    name: "Personal Leave",
-    description: "Personal time off for personal matters",
-    maxDaysPerYear: 5,
-    color: "#8B5CF6",
-  },
-  {
-    id: "4",
-    name: "Maternity Leave",
-    description: "Leave for new mothers",
-    maxDaysPerYear: 120,
-    color: "#EC4899",
-  },
-  {
-    id: "5",
-    name: "Paternity Leave",
-    description: "Leave for new fathers",
-    maxDaysPerYear: 15,
-    color: "#06B6D4",
-  },
-];
-
-const mockLeaveBalances: LeaveBalance[] = [
-  {
-    id: "bal_1",
-    employeeId: "emp_001",
-    leaveTypeId: "1",
-    leaveType: mockLeaveTypes[0],
-    year: 2024,
-    totalDays: 25,
-    usedDays: 8,
-    availableDays: 17,
-    carriedOver: 2,
-  },
-  {
-    id: "bal_2",
-    employeeId: "emp_001",
-    leaveTypeId: "2",
-    leaveType: mockLeaveTypes[1],
-    year: 2024,
-    totalDays: 10,
-    usedDays: 3,
-    availableDays: 7,
-    carriedOver: 0,
-  },
-  {
-    id: "bal_3",
-    employeeId: "emp_001",
-    leaveTypeId: "3",
-    leaveType: mockLeaveTypes[2],
-    year: 2024,
-    totalDays: 5,
-    usedDays: 1,
-    availableDays: 4,
-    carriedOver: 0,
-  },
-  {
-    id: "bal_4",
-    employeeId: "emp_001",
-    leaveTypeId: "4",
-    leaveType: mockLeaveTypes[3],
-    year: 2024,
-    totalDays: 120,
-    usedDays: 0,
-    availableDays: 120,
-    carriedOver: 0,
-  },
-  {
-    id: "bal_5",
-    employeeId: "emp_001",
-    leaveTypeId: "5",
-    leaveType: mockLeaveTypes[4],
-    year: 2024,
-    totalDays: 15,
-    usedDays: 0,
-    availableDays: 15,
-    carriedOver: 0,
-  },
-];
+import { useSimpleLeaveTypes } from "@/hooks/use-leave-types";
+import { Button } from "@/components/ui/button";
 
 export default function CreateLeavePage(): React.ReactElement {
+  const {
+    data: leaveTypes,
+    isLoading: leaveTypesLoading,
+    error: leaveTypesError,
+  } = useSimpleLeaveTypes();
+
   const handleSuccess = (): void => {
     // Optional: Add any additional success handling here
     // The form component will handle navigation automatically
   };
+
+  // Loading state
+  if (leaveTypesLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center space-x-2 text-sm text-gray-500">
+          <Skeleton className="h-4 w-20" />
+          <span>/</span>
+          <Skeleton className="h-4 w-32" />
+        </div>
+        <div className="space-y-4">
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-4 w-96" />
+        </div>
+        <Card className="p-6">
+          <Skeleton className="h-32 w-full" />
+        </Card>
+        <div className="space-y-4">
+          <Skeleton className="h-64 w-full" />
+          <Skeleton className="h-48 w-full" />
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (leaveTypesError) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center space-x-2 text-sm text-gray-500">
+          <Link
+            href="/dashboard/leaves/my-leaves"
+            className="flex items-center hover:text-gray-700"
+          >
+            <ArrowLeft className="mr-1 h-4 w-4" />
+            My Leaves
+          </Link>
+          <span>/</span>
+          <span className="text-gray-900">Create Request</span>
+        </div>
+
+        <Card className="border-red-200 bg-red-50 p-6">
+          <div className="flex items-center space-x-2 text-red-800">
+            <AlertCircle className="h-5 w-5" />
+            <h3 className="font-medium">Failed to load leave types</h3>
+          </div>
+          <p className="mt-2 text-sm text-red-700">
+            {leaveTypesError.message ||
+              "Unable to fetch available leave types. Please try again."}
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-3"
+            onClick={() => window.location.reload()}
+          >
+            Try Again
+          </Button>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!leaveTypes || leaveTypes.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center space-x-2 text-sm text-gray-500">
+          <Link
+            href="/dashboard/leaves/my-leaves"
+            className="flex items-center hover:text-gray-700"
+          >
+            <ArrowLeft className="mr-1 h-4 w-4" />
+            My Leaves
+          </Link>
+          <span>/</span>
+          <span className="text-gray-900">Create Request</span>
+        </div>
+
+        <Card className="border-amber-200 bg-amber-50 p-6">
+          <div className="flex items-center space-x-2 text-amber-800">
+            <AlertCircle className="h-5 w-5" />
+            <h3 className="font-medium">No leave types available</h3>
+          </div>
+          <p className="mt-2 text-sm text-amber-700">
+            There are no leave types configured for your organization. Please
+            contact your HR administrator.
+          </p>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -177,11 +184,7 @@ export default function CreateLeavePage(): React.ReactElement {
       </Card>
 
       {/* Form */}
-      <CreateLeaveForm
-        leaveTypes={mockLeaveTypes}
-        leaveBalances={mockLeaveBalances}
-        onSuccess={handleSuccess}
-      />
+      <CreateLeaveForm leaveTypes={leaveTypes} onSuccess={handleSuccess} />
     </div>
   );
 }

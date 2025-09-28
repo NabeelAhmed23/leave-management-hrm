@@ -1,4 +1,5 @@
 import { LeaveStatus, Role } from "@prisma/client";
+import { CheckLeaveBalanceInput } from "@/schemas/leave.schema";
 
 // Base leave request interface
 export interface LeaveRequest {
@@ -163,6 +164,52 @@ export interface RejectLeaveDTO {
 
 export interface CancelLeaveDTO {
   reason?: string;
+}
+
+export type CheckLeaveBalanceDTO = CheckLeaveBalanceInput;
+
+// Leave balance check result interface
+export interface LeaveBalanceCheckResult {
+  leaveType: {
+    id: string;
+    name: string;
+    maxDaysPerYear: number;
+  };
+  currentBalance: {
+    totalDays: number;
+    usedDays: number;
+    availableDays: number;
+    carriedOver: number;
+    year: number;
+  } | null;
+  requestedDays: number;
+  isAllowed: boolean;
+  conflicts: Array<{
+    type:
+      | "insufficient_balance"
+      | "overlapping_leave"
+      | "invalid_dates"
+      | "no_balance_record";
+    message: string;
+    details?: Record<string, unknown>;
+  }>;
+  overlappingLeaves: Array<{
+    id: string;
+    startDate: Date;
+    endDate: Date;
+    totalDays: number;
+    status: LeaveStatus;
+    leaveType: {
+      name: string;
+    };
+  }>;
+}
+
+// API Response for balance check
+export interface LeaveBalanceCheckResponse {
+  success: boolean;
+  message: string;
+  data: LeaveBalanceCheckResult;
 }
 
 // Utility types

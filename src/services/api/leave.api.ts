@@ -5,9 +5,12 @@ import {
   UpdateLeaveRequestDTO,
   QueryLeavesDTO,
   CancelLeaveDTO,
+  CheckLeaveBalanceDTO,
   LeaveRequestResponse,
   LeaveRequestsResponse,
+  LeaveBalanceCheckResponse,
   DetailedLeaveRequest,
+  LeaveBalanceCheckResult,
 } from "@/types/leave.types";
 import { AppError } from "@/utils/app-error";
 
@@ -20,6 +23,7 @@ export const leaveQueryKeys = {
   details: () => [...leaveQueryKeys.all, "detail"] as const,
   detail: (id: string) => [...leaveQueryKeys.details(), id] as const,
   balances: () => [...leaveQueryKeys.all, "balances"] as const,
+  balanceCheck: () => [...leaveQueryKeys.all, "balance-check"] as const,
   types: () => [...leaveQueryKeys.all, "types"] as const,
 };
 
@@ -117,6 +121,25 @@ const leaveApi = {
     if (!response.data.success || !response.data.data) {
       throw new AppError(
         response.data.message || "Failed to cancel leave request",
+        500
+      );
+    }
+
+    return response.data.data;
+  },
+
+  // Check leave balance
+  checkLeaveBalance: async (
+    data: CheckLeaveBalanceDTO
+  ): Promise<LeaveBalanceCheckResult> => {
+    const response = await apiClient.post<LeaveBalanceCheckResponse>(
+      "/leaves/check-balance",
+      data
+    );
+
+    if (!response.data.success || !response.data.data) {
+      throw new AppError(
+        response.data.message || "Failed to check leave balance",
         500
       );
     }
@@ -272,6 +295,21 @@ export function useOptimisticLeaveRequests(params: QueryLeavesDTO = {}) {
     ...query,
     updateOptimistically,
   };
+}
+
+/**
+ * Hook to check leave balance for a specific date range and leave type
+ */
+export function useCheckLeaveBalance() {
+  return useMutation({
+    mutationFn: leaveApi.checkLeaveBalance,
+    onSuccess: () => {
+      // No cache updates needed for balance check as it's a read-only operation
+    },
+    onError: () => {
+      // Error handling is managed by React Query's error boundaries
+    },
+  });
 }
 
 // Export the API functions for direct use if needed

@@ -108,6 +108,21 @@ export const cancelLeaveSchema = z.object({
     .optional(),
 });
 
+// Check leave balance schema
+export const checkLeaveBalanceSchema = z
+  .object({
+    leaveTypeId: z
+      .string()
+      .min(1, "Leave type is required")
+      .cuid("Invalid leave type ID"),
+    startDate: futureDateSchema,
+    endDate: futureDateSchema,
+  })
+  .refine(data => data.endDate >= data.startDate, {
+    message: "End date must be equal to or after start date",
+    path: ["endDate"],
+  });
+
 // Leave ID parameter schema
 export const leaveIdParamSchema = z.object({
   id: z.string().cuid("Invalid leave request ID"),
@@ -120,4 +135,5 @@ export type QueryLeavesInput = z.infer<typeof queryLeavesSchema>;
 export type ApproveLeaveInput = z.infer<typeof approveLeaveSchema>;
 export type RejectLeaveInput = z.infer<typeof rejectLeaveSchema>;
 export type CancelLeaveInput = z.infer<typeof cancelLeaveSchema>;
+export type CheckLeaveBalanceInput = z.infer<typeof checkLeaveBalanceSchema>;
 export type LeaveIdParam = z.infer<typeof leaveIdParamSchema>;

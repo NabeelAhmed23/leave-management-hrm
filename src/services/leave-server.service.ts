@@ -9,6 +9,8 @@ import {
   DetailedLeaveRequest,
   LeaveBalance,
   LeaveType,
+  CheckLeaveBalanceDTO,
+  LeaveBalanceCheckResult,
 } from "@/types/leave.types";
 
 // Helper function to calculate business days between two dates
@@ -613,5 +615,179 @@ export async function getOrganizationLeaveTypes(
   } catch (error) {
     logger.error(`Get organization leave types error: ${error}`);
     throw new AppError("Failed to retrieve leave types", 500);
+  }
+}
+
+/**
+ * Check leave balance for a specific date range and leave type
+ */
+export async function checkLeaveBalance(
+  employeeId: string,
+  organizationId: string,
+  data: CheckLeaveBalanceDTO
+): Promise<LeaveBalanceCheckResult> {
+  try {
+    const { leaveTypeId, startDate, endDate } = data;
+
+    // Validate dates
+    validateLeaveDates(startDate, endDate);
+
+    // Verify leave type exists and belongs to the organization
+    const leaveType = await prisma.leaveType.findFirst({
+      where: {
+        id: leaveTypeId,
+        organizationId,
+      },
+      select: {
+        id: true,
+        name: true,
+        maxDaysPerYear: true,
+      },
+    });
+
+    if (!leaveType) {
+      throw new AppError("Invalid leave type", 400);
+    }
+
+    // Calculate requested days
+    const requestedDays = calculateBusinessDays(startDate, endDate);
+
+    if (requestedDays === 0) {
+      return {
+        leaveType,
+        currentBalance: null,
+        requestedDays,
+        isAllowed: false,
+        conflicts: [
+          {
+            type: "invalid_dates",
+            message: "Leave request must include at least one business day",
+          },
+        ],
+        overlappingLeaves: [],
+      };
+    }
+
+    // Get current year's leave balance
+    const currentYear = new Date().getFullYear();
+    const leaveBalance = await prisma.leaveBalance.findFirst({
+      where: {
+        employeeId,
+        leaveTypeId,
+        year: currentYear,
+      },
+    });
+
+    // Check for overlapping leave requests
+    const overlappingLeaves = await prisma.leaveRequest.findMany({
+      where: {
+        employeeId,
+        status: {
+          in: [LeaveStatus.PENDING, LeaveStatus.APPROVED],
+        },
+        OR: [
+          {
+            startDate: {
+              lte: endDate,
+            },
+            endDate: {
+              gte: startDate,
+            },
+          },
+        ],
+      },
+      select: {
+        id: true,
+        startDate: true,
+        endDate: true,
+        totalDays: true,
+        status: true,
+        leaveType: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    });
+
+    // Initialize conflicts array
+    const conflicts: LeaveBalanceCheckResult["conflicts"] = [];
+
+    // Check if leave balance record exists
+    if (!leaveBalance) {
+      conflicts.push({
+        type: "no_balance_record",
+        message: `No leave balance record found for ${leaveType.name} in ${currentYear}`,
+        details: {
+          leaveTypeId,
+          year: currentYear,
+        },
+      });
+    }
+
+    // Check for sufficient balance
+    if (leaveBalance && leaveBalance.availableDays < requestedDays) {
+      conflicts.push({
+        type: "insufficient_balance",
+        message: `Insufficient leave balance. Available: ${leaveBalance.availableDays} days, Requested: ${requestedDays} days`,
+        details: {
+          available: leaveBalance.availableDays,
+          requested: requestedDays,
+          shortage: requestedDays - leaveBalance.availableDays,
+        },
+      });
+    }
+
+    // Check for overlapping leaves
+    if (overlappingLeaves.length > 0) {
+      conflicts.push({
+        type: "overlapping_leave",
+        message: `You have ${overlappingLeaves.length} overlapping leave request(s) for the selected dates`,
+        details: {
+          count: overlappingLeaves.length,
+          overlappingIds: overlappingLeaves.map(leave => leave.id),
+        },
+      });
+    }
+
+    // Determine if the request is allowed
+    const isAllowed = conflicts.length === 0;
+
+    logger.info(
+      `Leave balance check completed for employee: ${employeeId}, leave type: ${leaveTypeId}, requested days: ${requestedDays}, allowed: ${isAllowed}`
+    );
+
+    return {
+      leaveType,
+      currentBalance: leaveBalance
+        ? {
+            totalDays: leaveBalance.totalDays,
+            usedDays: leaveBalance.usedDays,
+            availableDays: leaveBalance.availableDays,
+            carriedOver: leaveBalance.carriedOver,
+            year: leaveBalance.year,
+          }
+        : null,
+      requestedDays,
+      isAllowed,
+      conflicts,
+      overlappingLeaves: overlappingLeaves.map(leave => ({
+        id: leave.id,
+        startDate: leave.startDate,
+        endDate: leave.endDate,
+        totalDays: leave.totalDays,
+        status: leave.status,
+        leaveType: {
+          name: leave.leaveType.name,
+        },
+      })),
+    };
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
+
+    logger.error(`Check leave balance error: ${error}`);
+    throw new AppError("Failed to check leave balance", 500);
   }
 }
