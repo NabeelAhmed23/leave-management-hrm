@@ -107,6 +107,7 @@ Build a maintainable, scalable SaaS Leave Management System (LMS) targeting a ni
 - Never use console, always use logger service only on server side or in api's
 - Never leave a block empty or with just a console, remove it
 - Never use fetch, always use axios instance.
+- Never mention SUPER_ADMIN role on the frontend anywhere on the system. Its not supposed to be shown on the frontend, thats for backend.
 
 ### Naming Conventions
 
