@@ -48,31 +48,32 @@ model Organization {
 }
 
 model Employee {
-  id                 String         @id @default(cuid())
-  employeeNumber     String         @unique // Custom employee ID like EMP001
-  userId             String         @unique // One-to-one relationship with User
-  user               User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                 String          @id @default(cuid())
+  employeeNumber     String          @unique // Custom employee ID like EMP001
+  userId             String?         @unique // One-to-one relationship with User (nullable for invite flow)
+  user               User?           @relation(fields: [userId], references: [id], onDelete: Cascade)
   organizationId     String
-  organization       Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization       Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   departmentId       String?
-  department         Department?    @relation(fields: [departmentId], references: [id])
-  role               Role           @default(EMPLOYEE)
+  department         Department?     @relation(fields: [departmentId], references: [id])
+  role               Role            @default(EMPLOYEE)
   jobTitle           String?
   managerId          String?
-  manager            Employee?      @relation("EmployeeManager", fields: [managerId], references: [id])
-  subordinates       Employee[]     @relation("EmployeeManager")
-  managedDepartments Department[]   @relation("DepartmentManager")
+  manager            Employee?       @relation("EmployeeManager", fields: [managerId], references: [id])
+  subordinates       Employee[]      @relation("EmployeeManager")
+  managedDepartments Department[]    @relation("DepartmentManager")
   startDate          DateTime
   endDate            DateTime?
-  isActive           Boolean        @default(true)
+  isActive           Boolean         @default(true)
   leaveRequests      LeaveRequest[]
-  approvedRequests   LeaveRequest[] @relation("ApprovedBy")
-  rejectedRequests   LeaveRequest[] @relation("RejectedBy")
+  approvedRequests   LeaveRequest[]  @relation("ApprovedBy")
+  rejectedRequests   LeaveRequest[]  @relation("RejectedBy")
   leaveBalances      LeaveBalance[]
   leaveComments      LeaveComment[]
   notifications      Notification[]
-  createdAt          DateTime       @default(now())
-  updatedAt          DateTime       @updatedAt
+  invite             EmployeeInvite?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
 
   @@map("employees")
 }
@@ -260,6 +261,24 @@ model PasswordResetToken {
   @@map("password_reset_tokens")
 }
 
+model EmployeeInvite {
+  id           String           @id @default(cuid())
+  email        String
+  firstName    String
+  lastName     String
+  token        String           @unique
+  employeeId   String?          @unique
+  employee     Employee?        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  status       InviteStatus     @default(PENDING)
+  expiresAt    DateTime
+  sentAt       DateTime         @default(now())
+  acceptedAt   DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@map("employee_invites")
+}
+
 enum LeaveStatus {
   PENDING
   APPROVED
@@ -280,4 +299,11 @@ enum NotificationType {
   LEAVE_REQUEST_CANCELLED
   LEAVE_BALANCE_LOW
   SYSTEM_ANNOUNCEMENT
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  CANCELLED
 }

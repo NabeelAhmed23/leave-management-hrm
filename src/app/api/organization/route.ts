@@ -11,7 +11,7 @@ import { logger } from "@/services/logger.service";
 /**
  * GET /api/organization - Get organization details
  */
-export async function GET(request: NextRequest): Promise<NextResponse> {
+export async function GET(): Promise<NextResponse> {
   try {
     // Check authentication
     const session = await getCurrentSession();

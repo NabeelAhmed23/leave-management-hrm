@@ -368,7 +368,7 @@ export async function resetPassword(
     const normalizedEmail = email.toLowerCase();
     const hashedToken = hashToken(token);
 
-    // Find valid reset token
+    // First, check for password reset token
     const resetTokenRecord = await prisma.passwordResetToken.findFirst({
       where: {
         email: normalizedEmail,
@@ -380,49 +380,145 @@ export async function resetPassword(
       },
     });
 
-    if (!resetTokenRecord) {
-      throw new AppError("Invalid or expired reset token", 400);
+    // If password reset token found, handle normal password reset
+    if (resetTokenRecord) {
+      // Find user
+      const user = await prisma.user.findUnique({
+        where: { email: normalizedEmail },
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+        },
+      });
+
+      if (!user) {
+        throw new AppError("User not found", 404);
+      }
+
+      // Hash new password
+      const passwordHash = await bcrypt.hash(newPassword, 12);
+
+      // Update user password and mark token as used
+      await prisma.$transaction([
+        prisma.user.update({
+          where: { id: user.id },
+          data: { passwordHash },
+        }),
+        prisma.passwordResetToken.update({
+          where: { id: resetTokenRecord.id },
+          data: { used: true },
+        }),
+      ]);
+
+      // Send confirmation email
+      await emailService.sendPasswordResetConfirmationEmail(
+        normalizedEmail,
+        user.firstName
+      );
+
+      logger.info(`Password successfully reset for user: ${user.id}`);
+
+      return { message: "Password has been successfully reset" };
     }
 
-    // Find user
-    const user = await prisma.user.findUnique({
-      where: { email: normalizedEmail },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
+    // If no password reset token, check for employee invite token
+    const employeeInvite = await prisma.employeeInvite.findFirst({
+      where: {
+        email: normalizedEmail,
+        token: token, // Employee invite tokens are stored unhashed
+        status: "PENDING",
+        expiresAt: {
+          gt: new Date(),
+        },
+      },
+      include: {
+        employee: {
+          include: {
+            organization: {
+              select: {
+                id: true,
+                name: true,
+                domain: true,
+              },
+            },
+          },
+        },
       },
     });
 
-    if (!user) {
-      throw new AppError("User not found", 404);
+    if (!employeeInvite) {
+      throw new AppError("Invalid or expired reset token", 400);
     }
 
-    // Hash new password
+    if (!employeeInvite.employee) {
+      throw new AppError("Employee not found for this invite", 404);
+    }
+
+    // Check if user already exists with this email
+    const existingUser = await prisma.user.findUnique({
+      where: { email: normalizedEmail },
+    });
+
+    if (existingUser) {
+      throw new AppError("User with this email already exists", 409);
+    }
+
+    // Hash password
     const passwordHash = await bcrypt.hash(newPassword, 12);
 
-    // Update user password and mark token as used
-    await prisma.$transaction([
-      prisma.user.update({
-        where: { id: user.id },
-        data: { passwordHash },
-      }),
-      prisma.passwordResetToken.update({
-        where: { id: resetTokenRecord.id },
-        data: { used: true },
-      }),
-    ]);
+    // Create user and link to employee, mark invite as accepted
+    const user = await prisma.$transaction(async tx => {
+      // Create user
+      const newUser = await tx.user.create({
+        data: {
+          email: normalizedEmail,
+          firstName: employeeInvite.firstName,
+          lastName: employeeInvite.lastName,
+          passwordHash,
+        },
+      });
+
+      // Update employee with user ID
+      await tx.employee.update({
+        where: { id: employeeInvite.employeeId! },
+        data: { userId: newUser.id },
+      });
+
+      // Mark invite as accepted
+      await tx.employeeInvite.update({
+        where: { id: employeeInvite.id },
+        data: {
+          status: "ACCEPTED",
+          acceptedAt: new Date(),
+        },
+      });
+
+      return newUser;
+    });
 
     // Send confirmation email
-    await emailService.sendPasswordResetConfirmationEmail(
+    const loginUrl = `${process.env.APP_URL}/auth/login`;
+    const confirmationData = {
+      firstName: employeeInvite.firstName,
+      email: normalizedEmail,
+      organizationName: employeeInvite.employee.organization.name,
+      loginUrl,
+      appName: process.env.APP_NAME || "Leave Management System",
+      supportEmail: process.env.SUPPORT_EMAIL || process.env.SMTP_FROM,
+    };
+
+    await emailService.sendTemplateEmail(
       normalizedEmail,
-      user.firstName
+      "Account Setup Complete - Welcome Aboard!",
+      "password-setup-confirmation",
+      confirmationData
     );
 
-    logger.info(`Password successfully reset for user: ${user.id}`);
+    logger.info(`Password setup completed for employee invite: ${user.id}`);
 
-    return { message: "Password has been successfully reset" };
+    return { message: "Account setup completed successfully" };
   } catch (error) {
     if (error instanceof AppError) {
       throw error;

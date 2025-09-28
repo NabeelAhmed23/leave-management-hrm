@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Spinner } from "@/components/ui/spinner";
 import {
   Form,
   FormControl,
@@ -85,8 +84,6 @@ export function CreateLeaveForm({
   onSuccess,
 }: CreateLeaveFormProps): React.ReactElement {
   const router = useRouter();
-  const [selectedLeaveType, setSelectedLeaveType] =
-    useState<SimpleLeaveType | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [balanceCheckResult, setBalanceCheckResult] =
     useState<LeaveBalanceCheckResult | null>(null);
@@ -123,8 +120,8 @@ export function CreateLeaveForm({
             endDate,
           });
           setBalanceCheckResult(result);
-        } catch (error) {
-          console.error("Balance check failed:", error);
+        } catch {
+          // Balance check failed - ignore error
           setBalanceCheckResult(null);
           toast.error("Failed to check leave balance. Please try again.");
         } finally {
@@ -136,7 +133,7 @@ export function CreateLeaveForm({
     }, 500); // 500ms debounce
 
     return () => clearTimeout(timeoutId);
-  }, [leaveTypeId, startDate, endDate]);
+  }, [leaveTypeId, startDate, endDate, checkBalanceMutation]);
 
   const getTotalDays = (): number => {
     return calculateDays();
@@ -149,8 +146,6 @@ export function CreateLeaveForm({
   };
 
   const handleLeaveTypeChange = (value: string): void => {
-    const leaveType = leaveTypes.find(type => type.id === value);
-    setSelectedLeaveType(leaveType || null);
     form.setValue("leaveTypeId", value);
   };
 
@@ -167,7 +162,6 @@ export function CreateLeaveForm({
     createLeaveRequestMutation.mutate(submitData, {
       onSuccess: () => {
         form.reset();
-        setSelectedLeaveType(null);
         onSuccess?.();
         router.push("/dashboard/leaves");
       },

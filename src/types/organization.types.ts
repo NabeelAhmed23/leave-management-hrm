@@ -1,7 +1,6 @@
 // Import the schema types
 import {
   UpdateOrganizationInput,
-  OrganizationSettingsInput,
   GetOrganizationStatsInput,
 } from "@/schemas/organization.schema";
 

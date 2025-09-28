@@ -57,6 +57,12 @@ const navigation: NavItem[] = [
     roles: ["MANAGER", "HR_ADMIN", "SUPER_ADMIN"],
   },
   {
+    title: "Employees",
+    href: "/dashboard/employees",
+    icon: Users,
+    roles: ["HR_ADMIN", "SUPER_ADMIN"],
+  },
+  {
     title: "Leave Calendar",
     href: "/dashboard/calendar",
     icon: Clock,

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getCurrentSession } from "@/services/auth-server.service";
 import { getSimpleLeaveTypes } from "@/services/leave-type-server.service";
 import { AppError } from "@/utils/app-error";
@@ -7,7 +7,7 @@ import { logger } from "@/services/logger.service";
 /**
  * GET /api/leave-types/simple - Get simple leave types list (for dropdowns)
  */
-export async function GET(request: NextRequest): Promise<NextResponse> {
+export async function GET(): Promise<NextResponse> {
   try {
     // Check authentication
     const session = await getCurrentSession();
