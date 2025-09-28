@@ -1,107 +1,106 @@
 "use client";
 
 import { useAuth } from "@/components/auth/auth-provider";
-import { useLogoutMutation } from "@/hooks/use-auth";
-import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import { formatRole } from "@/utils/format-role";
 
-export function DashboardClient(): React.ReactElement {
-  const { user, isLoading } = useAuth();
-  const logoutMutation = useLogoutMutation();
-
-  if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Spinner size="lg" />
-      </div>
-    );
-  }
+export function DashboardClient(): React.ReactElement | null {
+  const { user } = useAuth();
 
   if (!user) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <div className="space-y-4 text-center">
-          <h1 className="text-4xl font-bold text-gray-900">
-            Welcome to Leave Management System
-          </h1>
-          <p className="text-gray-600">Please sign in to access your account</p>
-          <Button onClick={() => (window.location.href = "/login")}>
-            Sign In
-          </Button>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="border-b bg-white shadow-sm">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex h-16 justify-between">
-            <div className="flex items-center">
-              <h1 className="text-xl font-semibold text-gray-900">
-                Leave Management System
-              </h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-700">
-                Welcome, {user.firstName} {user.lastName}
-              </span>
-              <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800">
+    <div className="space-y-6">
+      {/* Welcome Section */}
+      <div className="rounded-lg bg-white p-6 shadow-sm">
+        <h2 className="text-2xl font-bold text-gray-900">
+          Welcome back, {user.firstName}!
+        </h2>
+        <p className="mt-2 text-gray-600">
+          Here is an overview of your leave management dashboard.
+        </p>
+      </div>
+
+      {/* Quick Stats */}
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="rounded-lg bg-white p-6 shadow-sm">
+          <h3 className="text-sm font-medium text-gray-500">Available Leave</h3>
+          <p className="mt-2 text-3xl font-bold text-green-600">12 days</p>
+        </div>
+        <div className="rounded-lg bg-white p-6 shadow-sm">
+          <h3 className="text-sm font-medium text-gray-500">
+            Pending Requests
+          </h3>
+          <p className="mt-2 text-3xl font-bold text-yellow-600">2</p>
+        </div>
+        <div className="rounded-lg bg-white p-6 shadow-sm">
+          <h3 className="text-sm font-medium text-gray-500">Used This Year</h3>
+          <p className="mt-2 text-3xl font-bold text-blue-600">8 days</p>
+        </div>
+        <div className="rounded-lg bg-white p-6 shadow-sm">
+          <h3 className="text-sm font-medium text-gray-500">Team on Leave</h3>
+          <p className="mt-2 text-3xl font-bold text-purple-600">3</p>
+        </div>
+      </div>
+
+      {/* User Information */}
+      <div className="rounded-lg bg-white p-6 shadow-sm">
+        <h3 className="text-lg font-medium text-gray-900">
+          Account Information
+        </h3>
+        <dl className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <dt className="text-sm font-medium text-gray-500">Email</dt>
+            <dd className="mt-1 text-sm text-gray-900">{user.email}</dd>
+          </div>
+          <div>
+            <dt className="text-sm font-medium text-gray-500">Role</dt>
+            <dd className="mt-1">
+              <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">
                 {user.employee?.role
                   ? formatRole(user.employee.role)
                   : "No Role"}
               </span>
-              <Button
-                variant="outline"
-                onClick={() => logoutMutation.mutate()}
-                disabled={logoutMutation.isPending}
-              >
-                {logoutMutation.isPending ? (
-                  <>
-                    <Spinner size="sm" className="mr-2" />
-                    Signing out...
-                  </>
-                ) : (
-                  "Sign Out"
-                )}
-              </Button>
-            </div>
+            </dd>
           </div>
-        </div>
-      </nav>
+          <div>
+            <dt className="text-sm font-medium text-gray-500">Full Name</dt>
+            <dd className="mt-1 text-sm text-gray-900">
+              {user.firstName} {user.lastName}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-sm font-medium text-gray-500">User ID</dt>
+            <dd className="mt-1 text-sm text-gray-900">{user.id}</dd>
+          </div>
+        </dl>
+      </div>
 
-      <main className="mx-auto max-w-7xl py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
-          <div className="flex h-96 items-center justify-center rounded-lg border-4 border-dashed border-gray-200">
-            <div className="space-y-4 text-center">
-              <h2 className="text-2xl font-bold text-gray-900">Dashboard</h2>
-              <p className="text-gray-600">
-                Welcome to your leave management dashboard. This is where your
-                main application content will go.
-              </p>
-              <div className="rounded-lg bg-white p-4 shadow-sm">
-                <h3 className="font-medium text-gray-900">User Information</h3>
-                <dl className="mt-2 text-sm text-gray-600">
-                  <dt className="inline">Email: </dt>
-                  <dd className="inline">{user.email}</dd>
-                  <br />
-                  <dt className="inline">Role: </dt>
-                  <dd className="inline">
-                    {user.employee?.role
-                      ? formatRole(user.employee.role)
-                      : "No Role"}
-                  </dd>
-                  <br />
-                  <dt className="inline">User ID: </dt>
-                  <dd className="inline">{user.id}</dd>
-                </dl>
-              </div>
-            </div>
-          </div>
+      {/* Quick Actions */}
+      <div className="rounded-lg bg-white p-6 shadow-sm">
+        <h3 className="text-lg font-medium text-gray-900">Quick Actions</h3>
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <button className="rounded-lg border border-gray-300 p-4 text-left hover:bg-gray-50">
+            <h4 className="font-medium text-gray-900">Request Leave</h4>
+            <p className="mt-1 text-sm text-gray-500">
+              Submit a new leave request
+            </p>
+          </button>
+          <button className="rounded-lg border border-gray-300 p-4 text-left hover:bg-gray-50">
+            <h4 className="font-medium text-gray-900">View Calendar</h4>
+            <p className="mt-1 text-sm text-gray-500">
+              Check team availability
+            </p>
+          </button>
+          <button className="rounded-lg border border-gray-300 p-4 text-left hover:bg-gray-50">
+            <h4 className="font-medium text-gray-900">Leave History</h4>
+            <p className="mt-1 text-sm text-gray-500">
+              View your past requests
+            </p>
+          </button>
         </div>
-      </main>
+      </div>
     </div>
   );
 }
