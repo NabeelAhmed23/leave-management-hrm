@@ -5,7 +5,7 @@ import { CreateLeaveForm } from "@/components/leaves/create-leave-form";
 import { Card } from "@/components/ui/card";
 import { ArrowLeft, Calendar, FileText, Clock } from "lucide-react";
 import Link from "next/link";
-import { LeaveType, LeaveBalance, CreateLeaveRequest } from "@/types/leave";
+import { LeaveType, LeaveBalance } from "@/types/leave";
 
 // Mock data for demonstration
 const mockLeaveTypes: LeaveType[] = [
@@ -105,25 +105,9 @@ const mockLeaveBalances: LeaveBalance[] = [
 ];
 
 export default function CreateLeavePage(): React.ReactElement {
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const handleSubmit = async (_data: CreateLeaveRequest): Promise<void> => {
-    setIsSubmitting(true);
-
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // TODO: Replace with actual API call
-      alert("Leave request submitted successfully!");
-
-      // Redirect to my-leaves page
-      window.location.href = "/dashboard/leaves/my-leaves";
-    } catch (_error) {
-      alert("Failed to submit leave request. Please try again.");
-    } finally {
-      setIsSubmitting(false);
-    }
+  const handleSuccess = (): void => {
+    // Optional: Add any additional success handling here
+    // The form component will handle navigation automatically
   };
 
   return (
@@ -196,8 +180,7 @@ export default function CreateLeavePage(): React.ReactElement {
       <CreateLeaveForm
         leaveTypes={mockLeaveTypes}
         leaveBalances={mockLeaveBalances}
-        onSubmit={handleSubmit}
-        isSubmitting={isSubmitting}
+        onSuccess={handleSuccess}
       />
     </div>
   );

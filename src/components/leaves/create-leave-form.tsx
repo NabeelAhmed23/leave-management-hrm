@@ -30,10 +30,13 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
-import { LeaveType, LeaveBalance, CreateLeaveRequest } from "@/types/leave";
+import { LeaveType, LeaveBalance } from "@/types/leave";
+import { CreateLeaveRequestDTO } from "@/types/leave.types";
+import { useCreateLeaveRequest } from "@/services/api/leave.api";
 import { format, differenceInDays } from "date-fns";
 import { CalendarIcon, AlertCircle, CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 
 const createLeaveSchema = z
   .object({
@@ -61,19 +64,21 @@ type CreateLeaveFormData = z.infer<typeof createLeaveSchema>;
 interface CreateLeaveFormProps {
   leaveTypes: LeaveType[];
   leaveBalances: LeaveBalance[];
-  onSubmit: (data: CreateLeaveRequest) => void;
-  isSubmitting?: boolean;
+  onSuccess?: () => void;
 }
 
 export function CreateLeaveForm({
   leaveTypes,
   leaveBalances,
-  onSubmit,
-  isSubmitting = false,
+  onSuccess,
 }: CreateLeaveFormProps): React.ReactElement {
+  const router = useRouter();
   const [selectedLeaveType, setSelectedLeaveType] = useState<LeaveType | null>(
     null
   );
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const createLeaveRequestMutation = useCreateLeaveRequest();
 
   const form = useForm<CreateLeaveFormData>({
     resolver: zodResolver(createLeaveSchema),
@@ -120,19 +125,33 @@ export function CreateLeaveForm({
   };
 
   const handleSubmit = (data: CreateLeaveFormData): void => {
-    const submitData: CreateLeaveRequest = {
+    setSubmitError(null);
+
+    const submitData: CreateLeaveRequestDTO = {
       leaveTypeId: data.leaveTypeId,
-      startDate: format(data.startDate, "yyyy-MM-dd"),
-      endDate: format(data.endDate, "yyyy-MM-dd"),
+      startDate: data.startDate,
+      endDate: data.endDate,
       reason: data.reason,
     };
-    onSubmit(submitData);
+
+    createLeaveRequestMutation.mutate(submitData, {
+      onSuccess: () => {
+        form.reset();
+        setSelectedLeaveType(null);
+        onSuccess?.();
+        router.push("/dashboard/leaves");
+      },
+      onError: error => {
+        setSubmitError(error.message || "Failed to submit leave request");
+      },
+    });
   };
 
   const balance = getLeaveBalance();
   const totalDays = getTotalDays();
   const availableDays = getAvailableDays();
   const isValid = canSubmit();
+  const isSubmitting = createLeaveRequestMutation.isPending;
 
   return (
     <Form {...form}>
@@ -375,12 +394,24 @@ export function CreateLeaveForm({
           />
         </Card>
 
+        {/* Error Display */}
+        {submitError && (
+          <Card className="border-red-200 bg-red-50 p-4">
+            <div className="flex items-center space-x-2 text-red-800">
+              <AlertCircle className="h-4 w-4" />
+              <span className="text-sm font-medium">Error</span>
+            </div>
+            <p className="mt-1 text-sm text-red-700">{submitError}</p>
+          </Card>
+        )}
+
         {/* Submit */}
         <div className="flex justify-end space-x-4">
           <Button
             type="button"
             variant="outline"
-            onClick={() => window.history.back()}
+            onClick={() => router.back()}
+            disabled={isSubmitting}
           >
             Cancel
           </Button>
