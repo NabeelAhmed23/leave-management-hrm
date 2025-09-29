@@ -189,7 +189,8 @@ export interface LeaveBalanceCheckResult {
       | "insufficient_balance"
       | "overlapping_leave"
       | "invalid_dates"
-      | "no_balance_record";
+      | "no_balance_record"
+      | "weekend_only";
     message: string;
     details?: Record<string, unknown>;
   }>;

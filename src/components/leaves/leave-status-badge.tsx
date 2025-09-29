@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { LeaveStatus } from "@/types/leave";
+import { LeaveStatus } from "@prisma/client";
 import { cn } from "@/lib/utils";
 
 interface LeaveStatusBadgeProps {

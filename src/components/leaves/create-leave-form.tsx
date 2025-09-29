@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -88,6 +88,7 @@ export function CreateLeaveForm({
   const [balanceCheckResult, setBalanceCheckResult] =
     useState<LeaveBalanceCheckResult | null>(null);
   const [isCheckingBalance, setIsCheckingBalance] = useState(false);
+  const currentCheckRef = useRef<AbortController | null>(null);
 
   const createLeaveRequestMutation = useCreateLeaveRequest();
   const checkBalanceMutation = useCheckLeaveBalance();
@@ -110,8 +111,19 @@ export function CreateLeaveForm({
 
   // Effect to trigger balance check when form values change
   useEffect(() => {
+    // Cancel any ongoing check
+    if (currentCheckRef.current) {
+      currentCheckRef.current.abort();
+      currentCheckRef.current = null;
+      setIsCheckingBalance(false);
+    }
+
     const timeoutId = setTimeout(async () => {
       if (leaveTypeId && startDate && endDate) {
+        // Create a new AbortController for this request
+        const abortController = new AbortController();
+        currentCheckRef.current = abortController;
+
         setIsCheckingBalance(true);
         try {
           const result = await checkBalanceMutation.mutateAsync({
@@ -119,20 +131,38 @@ export function CreateLeaveForm({
             startDate,
             endDate,
           });
-          setBalanceCheckResult(result);
+
+          // Only update state if this request wasn't aborted
+          if (!abortController.signal.aborted) {
+            setBalanceCheckResult(result);
+          }
         } catch {
-          // Balance check failed - ignore error
-          setBalanceCheckResult(null);
-          toast.error("Failed to check leave balance. Please try again.");
+          // Only handle error if this request wasn't aborted
+          if (!abortController.signal.aborted) {
+            setBalanceCheckResult(null);
+            toast.error("Failed to check leave balance. Please try again.");
+          }
         } finally {
-          setIsCheckingBalance(false);
+          // Only update loading state if this request wasn't aborted
+          if (!abortController.signal.aborted) {
+            setIsCheckingBalance(false);
+            currentCheckRef.current = null;
+          }
         }
       } else {
         setBalanceCheckResult(null);
       }
     }, 500); // 500ms debounce
 
-    return () => clearTimeout(timeoutId);
+    return () => {
+      clearTimeout(timeoutId);
+      // Cancel any ongoing request when dependencies change
+      if (currentCheckRef.current) {
+        currentCheckRef.current.abort();
+        currentCheckRef.current = null;
+        setIsCheckingBalance(false);
+      }
+    };
   }, [leaveTypeId, startDate, endDate, checkBalanceMutation]);
 
   const getTotalDays = (): number => {

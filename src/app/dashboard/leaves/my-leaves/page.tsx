@@ -1,194 +1,170 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { LeaveFilters } from "@/components/leaves/leave-filters";
 import { LeaveRequestTable } from "@/components/leaves/leave-request-table";
-import { Plus } from "lucide-react";
+import { Plus, AlertCircle } from "lucide-react";
 import Link from "next/link";
+import { LeaveStatus } from "@prisma/client";
 import {
-  LeaveRequest,
-  LeaveType,
-  LeaveStatus,
-  LeaveFilters as LeaveFiltersType,
-  PaginationInfo,
-} from "@/types/leave";
-
-// Mock data for demonstration
-const mockLeaveTypes: LeaveType[] = [
-  {
-    id: "1",
-    name: "Annual Leave",
-    description: "Yearly vacation days",
-    maxDaysPerYear: 25,
-    color: "#3B82F6",
-  },
-  {
-    id: "2",
-    name: "Sick Leave",
-    description: "Medical leave",
-    maxDaysPerYear: 10,
-    color: "#EF4444",
-  },
-  {
-    id: "3",
-    name: "Personal Leave",
-    description: "Personal time off",
-    maxDaysPerYear: 5,
-    color: "#8B5CF6",
-  },
-  {
-    id: "4",
-    name: "Maternity Leave",
-    description: "Maternity leave",
-    maxDaysPerYear: 120,
-    color: "#EC4899",
-  },
-];
-
-const mockLeaveRequests: LeaveRequest[] = [
-  {
-    id: "req_001",
-    employeeId: "emp_001",
-    employeeName: "John Doe",
-    leaveTypeId: "1",
-    leaveType: mockLeaveTypes[0],
-    startDate: "2024-12-15",
-    endDate: "2024-12-25",
-    totalDays: 8,
-    reason: "Christmas vacation with family",
-    status: LeaveStatus.APPROVED,
-    approvedBy: "Jane Smith",
-    approvedAt: "2024-12-01T10:00:00Z",
-    createdAt: "2024-11-28T09:00:00Z",
-    updatedAt: "2024-12-01T10:00:00Z",
-  },
-  {
-    id: "req_002",
-    employeeId: "emp_001",
-    employeeName: "John Doe",
-    leaveTypeId: "2",
-    leaveType: mockLeaveTypes[1],
-    startDate: "2024-11-20",
-    endDate: "2024-11-22",
-    totalDays: 3,
-    reason: "Flu symptoms",
-    status: LeaveStatus.PENDING,
-    createdAt: "2024-11-19T14:30:00Z",
-    updatedAt: "2024-11-19T14:30:00Z",
-  },
-  {
-    id: "req_003",
-    employeeId: "emp_001",
-    employeeName: "John Doe",
-    leaveTypeId: "1",
-    leaveType: mockLeaveTypes[0],
-    startDate: "2024-10-10",
-    endDate: "2024-10-12",
-    totalDays: 3,
-    reason: "Long weekend trip",
-    status: LeaveStatus.REJECTED,
-    rejectedBy: "Jane Smith",
-    rejectedAt: "2024-10-08T16:00:00Z",
-    createdAt: "2024-10-05T11:00:00Z",
-    updatedAt: "2024-10-08T16:00:00Z",
-  },
-  {
-    id: "req_004",
-    employeeId: "emp_001",
-    employeeName: "John Doe",
-    leaveTypeId: "3",
-    leaveType: mockLeaveTypes[2],
-    startDate: "2024-09-25",
-    endDate: "2024-09-25",
-    totalDays: 1,
-    reason: "Personal appointment",
-    status: LeaveStatus.CANCELLED,
-    createdAt: "2024-09-20T08:00:00Z",
-    updatedAt: "2024-09-24T12:00:00Z",
-  },
-  {
-    id: "req_005",
-    employeeId: "emp_001",
-    employeeName: "John Doe",
-    leaveTypeId: "1",
-    leaveType: mockLeaveTypes[0],
-    startDate: "2024-08-15",
-    endDate: "2024-08-20",
-    totalDays: 4,
-    reason: "Summer vacation",
-    status: LeaveStatus.APPROVED,
-    approvedBy: "Jane Smith",
-    approvedAt: "2024-08-10T14:00:00Z",
-    createdAt: "2024-08-05T10:00:00Z",
-    updatedAt: "2024-08-10T14:00:00Z",
-  },
-];
+  useLeaveRequests,
+  useCancelLeaveRequest,
+} from "@/services/api/leave.api";
+import { useSimpleLeaveTypes } from "@/hooks/use-leave-types";
+import { QueryLeavesDTO, DetailedLeaveRequest } from "@/types/leave.types";
+import { toast } from "sonner";
 
 export default function MyLeavesPage(): React.ReactElement {
-  const [filters, setFilters] = useState<LeaveFiltersType>({
-    status: "ALL",
+  const [filters, setFilters] = useState<QueryLeavesDTO>({
+    page: 1,
+    limit: 10,
   });
-  const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 10;
 
-  const filteredData = useMemo(() => {
-    let filtered = mockLeaveRequests;
+  // Fetch leave requests with filters
+  const {
+    data: leaveData,
+    isLoading: leaveRequestsLoading,
+    error: leaveRequestsError,
+    refetch: refetchLeaveRequests,
+  } = useLeaveRequests(filters);
 
-    if (filters.status && filters.status !== "ALL") {
-      filtered = filtered.filter(request => request.status === filters.status);
-    }
+  // Fetch leave types for filtering
+  const { data: leaveTypes = [], isLoading: leaveTypesLoading } =
+    useSimpleLeaveTypes();
 
-    if (filters.leaveTypeId) {
-      filtered = filtered.filter(
-        request => request.leaveTypeId === filters.leaveTypeId
-      );
-    }
+  // Cancel leave request mutation
+  const cancelLeaveRequestMutation = useCancelLeaveRequest();
 
-    if (filters.startDate) {
-      filtered = filtered.filter(
-        request => request.startDate >= filters.startDate!
-      );
-    }
-
-    if (filters.endDate) {
-      filtered = filtered.filter(
-        request => request.endDate <= filters.endDate!
-      );
-    }
-
-    return filtered;
-  }, [filters]);
-
-  const paginatedData = useMemo(() => {
-    const startIndex = (currentPage - 1) * pageSize;
-    return filteredData.slice(startIndex, startIndex + pageSize);
-  }, [filteredData, currentPage]);
-
-  const pagination: PaginationInfo = {
-    page: currentPage,
-    pageSize,
-    total: filteredData.length,
-    totalPages: Math.ceil(filteredData.length / pageSize),
+  const leaveRequests = leaveData?.leaveRequests || [];
+  const pagination = leaveData?.pagination || {
+    page: 1,
+    limit: 10,
+    total: 0,
+    pages: 0,
   };
 
-  const handleView = (request: LeaveRequest): void => {
+  const handleView = (request: DetailedLeaveRequest): void => {
     // TODO: Implement view functionality
     alert(`Viewing request ${request.id}`);
   };
 
-  const handleEdit = (request: LeaveRequest): void => {
+  const handleEdit = (request: DetailedLeaveRequest): void => {
     // TODO: Navigate to edit page
     alert(`Editing request ${request.id}`);
   };
 
-  const handleCancel = (request: LeaveRequest): void => {
-    // TODO: Implement cancel functionality
+  const handleCancel = (request: DetailedLeaveRequest): void => {
     if (window.confirm("Are you sure you want to cancel this request?")) {
-      alert(`Cancelled request ${request.id}`);
+      cancelLeaveRequestMutation.mutate(
+        { id: request.id, data: {} },
+        {
+          onSuccess: () => {
+            toast.success("Leave request cancelled successfully");
+            refetchLeaveRequests();
+          },
+          onError: error => {
+            toast.error(error.message || "Failed to cancel leave request");
+          },
+        }
+      );
     }
   };
+
+  const handlePageChange = (page: number): void => {
+    setFilters(prev => ({ ...prev, page }));
+  };
+
+  const handleFiltersChange = (newFilters: Partial<typeof filters>): void => {
+    setFilters(prev => ({
+      ...prev,
+      ...newFilters,
+      page: 1, // Reset to first page when filters change
+    }));
+  };
+
+  // Loading state
+  if (leaveRequestsLoading) {
+    return (
+      <div className="space-y-6">
+        {/* Header Skeleton */}
+        <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
+          <div>
+            <Skeleton className="mb-2 h-8 w-64" />
+            <Skeleton className="h-4 w-96" />
+          </div>
+          <Skeleton className="h-10 w-48" />
+        </div>
+
+        {/* Statistics Cards Skeleton */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i} className="p-4">
+              <Skeleton className="h-16 w-full" />
+            </Card>
+          ))}
+        </div>
+
+        {/* Filters Skeleton */}
+        <Card className="p-6">
+          <Skeleton className="h-32 w-full" />
+        </Card>
+
+        {/* Table Skeleton */}
+        <Card className="p-6">
+          <Skeleton className="h-64 w-full" />
+        </Card>
+      </div>
+    );
+  }
+
+  // Error state
+  if (leaveRequestsError) {
+    return (
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              My Leave Requests
+            </h1>
+            <p className="text-gray-600">
+              View and manage your leave requests. Track status and plan your
+              time off.
+            </p>
+          </div>
+          <Link href="/dashboard/leaves/create">
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Leave Request
+            </Button>
+          </Link>
+        </div>
+
+        {/* Error Card */}
+        <Card className="border-red-200 bg-red-50 p-6">
+          <div className="flex items-center space-x-2 text-red-800">
+            <AlertCircle className="h-5 w-5" />
+            <h3 className="font-medium">Failed to load leave requests</h3>
+          </div>
+          <p className="mt-2 text-sm text-red-700">
+            {leaveRequestsError.message ||
+              "Unable to fetch leave requests. Please try again."}
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-3"
+            onClick={() => refetchLeaveRequests()}
+          >
+            Try Again
+          </Button>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -220,7 +196,7 @@ export default function MyLeavesPage(): React.ReactElement {
                 Total Requests
               </p>
               <p className="text-2xl font-bold text-gray-900">
-                {mockLeaveRequests.length}
+                {pagination.total}
               </p>
             </div>
             <div className="rounded-full bg-blue-100 p-3">
@@ -235,9 +211,8 @@ export default function MyLeavesPage(): React.ReactElement {
               <p className="text-sm font-medium text-gray-600">Pending</p>
               <p className="text-2xl font-bold text-yellow-600">
                 {
-                  mockLeaveRequests.filter(
-                    r => r.status === LeaveStatus.PENDING
-                  ).length
+                  leaveRequests.filter(r => r.status === LeaveStatus.PENDING)
+                    .length
                 }
               </p>
             </div>
@@ -253,9 +228,8 @@ export default function MyLeavesPage(): React.ReactElement {
               <p className="text-sm font-medium text-gray-600">Approved</p>
               <p className="text-2xl font-bold text-green-600">
                 {
-                  mockLeaveRequests.filter(
-                    r => r.status === LeaveStatus.APPROVED
-                  ).length
+                  leaveRequests.filter(r => r.status === LeaveStatus.APPROVED)
+                    .length
                 }
               </p>
             </div>
@@ -270,7 +244,7 @@ export default function MyLeavesPage(): React.ReactElement {
             <div>
               <p className="text-sm font-medium text-gray-600">Days Used</p>
               <p className="text-2xl font-bold text-purple-600">
-                {mockLeaveRequests
+                {leaveRequests
                   .filter(r => r.status === LeaveStatus.APPROVED)
                   .reduce((sum, r) => sum + r.totalDays, 0)}
               </p>
@@ -283,20 +257,23 @@ export default function MyLeavesPage(): React.ReactElement {
       </div>
 
       {/* Filters */}
-      <LeaveFilters
-        filters={filters}
-        onFiltersChange={setFilters}
-        leaveTypes={mockLeaveTypes}
-      />
+      {!leaveTypesLoading && (
+        <LeaveFilters
+          filters={filters}
+          onFiltersChange={handleFiltersChange}
+          leaveTypes={leaveTypes}
+        />
+      )}
 
       {/* Table */}
       <LeaveRequestTable
-        data={paginatedData}
+        data={leaveRequests}
         pagination={pagination}
-        onPageChange={setCurrentPage}
+        onPageChange={handlePageChange}
         onView={handleView}
         onEdit={handleEdit}
         onCancel={handleCancel}
+        isLoading={cancelLeaveRequestMutation.isPending}
       />
     </div>
   );

@@ -13,8 +13,10 @@ import {
 import Link from "next/link";
 import { useSimpleLeaveTypes } from "@/hooks/use-leave-types";
 import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
 
 export default function CreateLeavePage(): React.ReactElement {
+  const router = useRouter();
   const {
     data: leaveTypes,
     isLoading: leaveTypesLoading,
@@ -22,8 +24,7 @@ export default function CreateLeavePage(): React.ReactElement {
   } = useSimpleLeaveTypes();
 
   const handleSuccess = (): void => {
-    // Optional: Add any additional success handling here
-    // The form component will handle navigation automatically
+    router.push("/dashboard/leaves/my-leaves");
   };
 
   // Loading state

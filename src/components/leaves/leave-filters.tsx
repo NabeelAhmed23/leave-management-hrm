@@ -16,19 +16,24 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  LeaveFilters as LeaveFiltersType,
-  LeaveStatus,
-  LeaveType,
-} from "@/types/leave";
+import { LeaveStatus } from "@prisma/client";
+import { QueryLeavesDTO } from "@/types/leave.types";
+
+// Simple leave type interface for compatibility
+interface SimpleLeaveType {
+  id: string;
+  name: string;
+  description?: string | null;
+  maxDaysPerYear: number;
+}
 import { CalendarIcon, X } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
 interface LeaveFiltersProps {
-  filters: LeaveFiltersType;
-  onFiltersChange: (filters: LeaveFiltersType) => void;
-  leaveTypes: LeaveType[];
+  filters: QueryLeavesDTO;
+  onFiltersChange: (filters: QueryLeavesDTO) => void;
+  leaveTypes: SimpleLeaveType[];
 }
 
 export function LeaveFilters({
@@ -45,7 +50,7 @@ export function LeaveFilters({
 
   const handleStatusChange = (value: string): void => {
     const status = value === "ALL" ? undefined : (value as LeaveStatus);
-    onFiltersChange({ ...filters, status: status || "ALL" });
+    onFiltersChange({ ...filters, status });
   };
 
   const handleLeaveTypeChange = (value: string): void => {
@@ -57,7 +62,7 @@ export function LeaveFilters({
     setStartDate(date);
     onFiltersChange({
       ...filters,
-      startDate: date ? format(date, "yyyy-MM-dd") : undefined,
+      startDate: date,
     });
   };
 
@@ -65,7 +70,7 @@ export function LeaveFilters({
     setEndDate(date);
     onFiltersChange({
       ...filters,
-      endDate: date ? format(date, "yyyy-MM-dd") : undefined,
+      endDate: date,
     });
   };
 
@@ -73,7 +78,9 @@ export function LeaveFilters({
     setStartDate(undefined);
     setEndDate(undefined);
     onFiltersChange({
-      status: "ALL",
+      page: 1,
+      limit: filters.limit || 10,
+      status: undefined,
       leaveTypeId: undefined,
       startDate: undefined,
       endDate: undefined,
@@ -81,18 +88,18 @@ export function LeaveFilters({
   };
 
   const hasActiveFilters =
-    filters.status !== "ALL" ||
+    filters.status ||
     filters.leaveTypeId ||
     filters.startDate ||
     filters.endDate;
 
   return (
     <Card className="p-4">
-      <div className="flex flex-col space-y-4 md:flex-row md:items-center md:space-y-0 md:space-x-4">
+      <div className="flex flex-col flex-wrap space-y-4 md:flex-row md:items-center md:space-y-0 md:space-x-4">
         <div className="flex flex-col space-y-2">
           <label className="text-sm font-medium text-gray-700">Status</label>
           <Select
-            value={filters.status || "ALL"}
+            value={filters.status ? filters.status : "ALL"}
             onValueChange={handleStatusChange}
           >
             <SelectTrigger className="w-full md:w-[150px]">

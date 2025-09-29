@@ -49,6 +49,7 @@ const navigation: NavItem[] = [
     title: "Leave Requests",
     href: "/dashboard/leaves/requests",
     icon: FileText,
+    roles: ["MANAGER", "HR_ADMIN", "SUPER_ADMIN"],
   },
   {
     title: "Team Leaves",

@@ -30,6 +30,24 @@ function calculateBusinessDays(startDate: Date, endDate: Date): number {
   return count;
 }
 
+// Helper function to check if date range contains only weekend days
+function containsOnlyWeekends(startDate: Date, endDate: Date): boolean {
+  const currentDate = new Date(startDate);
+  let hasWeekday = false;
+
+  while (currentDate <= endDate) {
+    const dayOfWeek = currentDate.getDay();
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      // Found a weekday (Monday-Friday)
+      hasWeekday = true;
+      break;
+    }
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+
+  return !hasWeekday;
+}
+
 // Helper function to validate leave dates
 function validateLeaveDates(startDate: Date, endDate: Date): void {
   const now = new Date();
@@ -649,6 +667,28 @@ export async function checkLeaveBalance(
       throw new AppError("Invalid leave type", 400);
     }
 
+    // Check if the selected dates contain only weekends
+    if (containsOnlyWeekends(startDate, endDate)) {
+      return {
+        leaveType,
+        currentBalance: null,
+        requestedDays: 0,
+        isAllowed: false,
+        conflicts: [
+          {
+            type: "weekend_only",
+            message:
+              "The selected dates are weekends (Saturday/Sunday) which are already holidays",
+            details: {
+              startDate: startDate.toISOString(),
+              endDate: endDate.toISOString(),
+            },
+          },
+        ],
+        overlappingLeaves: [],
+      };
+    }
+
     // Calculate requested days
     const requestedDays = calculateBusinessDays(startDate, endDate);
 
@@ -740,12 +780,20 @@ export async function checkLeaveBalance(
 
     // Check for overlapping leaves
     if (overlappingLeaves.length > 0) {
+      const overlappingDetails = overlappingLeaves.map(leave => ({
+        id: leave.id,
+        dates: `${leave.startDate.toLocaleDateString()} - ${leave.endDate.toLocaleDateString()}`,
+        leaveType: leave.leaveType.name,
+        status: leave.status,
+        totalDays: leave.totalDays,
+      }));
+
       conflicts.push({
         type: "overlapping_leave",
-        message: `You have ${overlappingLeaves.length} overlapping leave request(s) for the selected dates`,
+        message: `The selected dates overlap with ${overlappingLeaves.length} existing leave request(s). Please choose different dates or cancel the conflicting requests.`,
         details: {
           count: overlappingLeaves.length,
-          overlappingIds: overlappingLeaves.map(leave => leave.id),
+          overlappingRequests: overlappingDetails,
         },
       });
     }

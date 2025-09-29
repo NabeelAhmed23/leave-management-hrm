@@ -19,7 +19,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { LeaveStatusBadge } from "./leave-status-badge";
-import { LeaveRequest, PaginationInfo } from "@/types/leave";
+import { DetailedLeaveRequest, LeaveRequest } from "@/types/leave.types";
 import { format } from "date-fns";
 import {
   MoreHorizontal,
@@ -31,13 +31,20 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+interface PaginationInfo {
+  page: number;
+  limit: number;
+  total: number;
+  pages: number;
+}
+
 interface LeaveRequestTableProps {
-  data: LeaveRequest[];
+  data: DetailedLeaveRequest[];
   pagination: PaginationInfo;
   onPageChange: (page: number) => void;
-  onView?: (request: LeaveRequest) => void;
-  onEdit?: (request: LeaveRequest) => void;
-  onCancel?: (request: LeaveRequest) => void;
+  onView?: (request: DetailedLeaveRequest) => void;
+  onEdit?: (request: DetailedLeaveRequest) => void;
+  onCancel?: (request: DetailedLeaveRequest) => void;
   isLoading?: boolean;
 }
 
@@ -65,7 +72,7 @@ export function LeaveRequestTable({
   const generatePageNumbers = (): number[] => {
     const pages: number[] = [];
     const maxVisiblePages = 5;
-    const { page, totalPages } = pagination;
+    const { page, pages: totalPages } = pagination;
 
     let startPage = Math.max(1, page - Math.floor(maxVisiblePages / 2));
     const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
@@ -136,7 +143,7 @@ export function LeaveRequestTable({
                 </TableHead>
                 <TableHead
                   className="cursor-pointer hover:bg-gray-50"
-                  onClick={() => handleSort("leaveType")}
+                  onClick={() => handleSort("leaveTypeId")}
                 >
                   Leave Type
                 </TableHead>
@@ -171,10 +178,7 @@ export function LeaveRequestTable({
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center space-x-2">
-                      <div
-                        className="h-3 w-3 rounded-full"
-                        style={{ backgroundColor: request.leaveType.color }}
-                      />
+                      <div className="h-3 w-3 rounded-full bg-blue-500" />
                       <span>{request.leaveType.name}</span>
                     </div>
                   </TableCell>
@@ -233,12 +237,12 @@ export function LeaveRequestTable({
       </Card>
 
       {/* Pagination */}
-      {pagination.totalPages > 1 && (
+      {pagination.pages > 1 && (
         <div className="flex items-center justify-between">
           <div className="text-sm text-gray-500">
-            Showing {(pagination.page - 1) * pagination.pageSize + 1} to{" "}
-            {Math.min(pagination.page * pagination.pageSize, pagination.total)}{" "}
-            of {pagination.total} results
+            Showing {(pagination.page - 1) * pagination.limit + 1} to{" "}
+            {Math.min(pagination.page * pagination.limit, pagination.total)} of{" "}
+            {pagination.total} results
           </div>
           <div className="flex items-center space-x-2">
             <Button
@@ -270,7 +274,7 @@ export function LeaveRequestTable({
               variant="outline"
               size="sm"
               onClick={() => onPageChange(pagination.page + 1)}
-              disabled={pagination.page === pagination.totalPages}
+              disabled={pagination.page === pagination.pages}
             >
               Next
               <ChevronRight className="h-4 w-4" />

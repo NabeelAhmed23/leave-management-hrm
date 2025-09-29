@@ -64,6 +64,7 @@ model Employee {
   managedDepartments Department[]    @relation("DepartmentManager")
   startDate          DateTime
   endDate            DateTime?
+  dateOfBirth        DateTime?
   isActive           Boolean         @default(true)
   leaveRequests      LeaveRequest[]
   approvedRequests   LeaveRequest[]  @relation("ApprovedBy")

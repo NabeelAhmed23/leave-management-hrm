@@ -1,10 +1,19 @@
 "use client";
 
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
 import { DetailedEmployee } from "@/types/employee.types";
-import { Calendar, CheckCircle, Clock, XCircle } from "lucide-react";
+import { Plus, X, AlertCircle } from "lucide-react";
+import { useEmployeeLeaveBalances } from "@/hooks/use-leave-balances";
+import { AssignLeaveBalanceForm } from "./assign-leave-balance-form";
+import { LeaveBalanceCard } from "./leave-balance-card";
+import { LeaveBalanceSummary } from "./leave-balance-summary";
+import { LeaveBalanceDetailView } from "./leave-balance-detail-view";
+import { EmptyLeaveBalanceState } from "./empty-leave-balance-state";
+import { cn } from "@/lib/utils";
 
 interface EmployeeLeavesTabProps {
   employee: DetailedEmployee;
@@ -13,223 +22,209 @@ interface EmployeeLeavesTabProps {
 export function EmployeeLeavesTab({
   employee,
 }: EmployeeLeavesTabProps): React.ReactElement {
-  // Cast to include leave balances if they exist
-  const employeeWithBalances = employee as DetailedEmployee & {
-    leaveBalances?: Array<{
-      id: string;
-      year: number;
-      totalDays: number;
-      usedDays: number;
-      availableDays: number;
-      carriedOver: number;
-      leaveType: {
-        id: string;
-        name: string;
-        description?: string;
-        maxDaysPerYear: number;
-      };
-    }>;
+  const [showAssignForm, setShowAssignForm] = useState(false);
+  const currentYear = new Date().getFullYear();
+
+  // Fetch leave balances using React Query
+  const {
+    data: employeeWithBalances,
+    isLoading,
+    error,
+    refetch,
+  } = useEmployeeLeaveBalances(employee.id, { year: currentYear });
+
+  const leaveBalances = employeeWithBalances?.leaveBalances || [];
+
+  const handleAssignSuccess = (): void => {
+    setShowAssignForm(false);
   };
 
-  const currentYear = new Date().getFullYear();
-  const leaveBalances =
-    employeeWithBalances.leaveBalances?.filter(
-      balance => balance.year === currentYear
-    ) || [];
+  const handleAssignCancel = (): void => {
+    setShowAssignForm(false);
+  };
 
-  if (!employeeWithBalances.leaveBalances || leaveBalances.length === 0) {
+  // Loading state
+  if (isLoading) {
     return (
-      <div className="flex min-h-[200px] flex-col items-center justify-center space-y-4">
-        <Calendar className="h-12 w-12 text-gray-400" />
-        <div className="text-center">
-          <h3 className="text-lg font-semibold text-gray-900">
-            No Leave Balances
-          </h3>
-          <p className="text-gray-600">
-            This employee has no leave balances configured for the current year.
-          </p>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <Skeleton className="h-7 w-48" />
+            <Skeleton className="h-6 w-20" />
+          </div>
+          <Skeleton className="h-9 w-40" />
         </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-64 w-full" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-gray-900">
+            Leave Balances for {currentYear}
+          </h3>
+          <Button
+            onClick={() => refetch()}
+            variant="outline"
+            size="sm"
+            className="flex items-center space-x-2"
+          >
+            <AlertCircle className="h-4 w-4" />
+            <span>Retry</span>
+          </Button>
+        </div>
+        <div className="flex min-h-[200px] flex-col items-center justify-center space-y-4">
+          <AlertCircle className="h-12 w-12 text-red-400" />
+          <div className="text-center">
+            <h3 className="text-lg font-semibold text-gray-900">
+              Failed to Load Leave Balances
+            </h3>
+            <p className="text-gray-600">
+              There was an error loading the leave balances. Please try again.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // If no leave balances exist, show empty state
+  if (!employeeWithBalances || leaveBalances.length === 0) {
+    return (
+      <div className="space-y-6">
+        <EmptyLeaveBalanceState
+          currentYear={currentYear}
+          onAssignClick={() => setShowAssignForm(true)}
+        />
+
+        {showAssignForm && (
+          <AssignLeaveBalanceForm
+            employeeId={employee.id}
+            onSuccess={handleAssignSuccess}
+            onCancel={handleAssignCancel}
+            existingLeaveBalances={leaveBalances}
+          />
+        )}
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900">
-          Leave Balances for {currentYear}
-        </h3>
-        <Badge variant="outline" className="text-sm">
-          {leaveBalances.length} Leave Type
-          {leaveBalances.length !== 1 ? "s" : ""}
-        </Badge>
+        <div className="flex items-center space-x-4">
+          <h3 className="text-lg font-semibold text-gray-900">
+            Leave Balances for {currentYear}
+          </h3>
+          <Badge variant="outline" className="text-sm">
+            {leaveBalances.length} Leave Type
+            {leaveBalances.length !== 1 ? "s" : ""}
+          </Badge>
+        </div>
+        <Button
+          onClick={() => setShowAssignForm(!showAssignForm)}
+          size="sm"
+          variant={showAssignForm ? "outline" : "default"}
+          className="flex items-center space-x-2"
+        >
+          {showAssignForm ? (
+            <>
+              <X className="h-4 w-4" />
+              <span>Cancel</span>
+            </>
+          ) : (
+            <>
+              <Plus className="h-4 w-4" />
+              <span>Assign Leave Balance</span>
+            </>
+          )}
+        </Button>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {leaveBalances.map(balance => {
-          const usagePercentage =
-            balance.totalDays > 0
-              ? (balance.usedDays / balance.totalDays) * 100
-              : 0;
+      {/* Assign Form */}
+      {showAssignForm && (
+        <AssignLeaveBalanceForm
+          employeeId={employee.id}
+          onSuccess={handleAssignSuccess}
+          onCancel={handleAssignCancel}
+          existingLeaveBalances={leaveBalances}
+        />
+      )}
 
-          return (
-            <Card
-              key={balance.id}
-              className="transition-shadow hover:shadow-md"
+      {/* Leave Balance Content */}
+      <Tabs defaultValue="overview" className="space-y-6">
+        <div className="w-full">
+          <TabsList
+            className={cn(
+              "h-10 w-full p-1",
+              leaveBalances.length > 3
+                ? "scrollbar-hide flex overflow-x-auto"
+                : cn(
+                    "grid",
+                    leaveBalances.length === 0 && "grid-cols-1",
+                    leaveBalances.length === 1 && "grid-cols-2",
+                    leaveBalances.length === 2 && "grid-cols-3",
+                    leaveBalances.length === 3 && "grid-cols-4"
+                  )
+            )}
+          >
+            <TabsTrigger
+              value="overview"
+              className={cn(
+                "whitespace-nowrap",
+                leaveBalances.length > 3 ? "min-w-[100px] flex-shrink-0" : ""
+              )}
             >
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center justify-between text-base font-semibold">
-                  <span>{balance.leaveType.name}</span>
-                  <Badge
-                    variant={
-                      balance.availableDays > 0 ? "default" : "destructive"
-                    }
-                    className="text-xs"
-                  >
-                    {balance.availableDays} left
-                  </Badge>
-                </CardTitle>
-                {balance.leaveType.description && (
-                  <p className="text-sm text-gray-600">
-                    {balance.leaveType.description}
-                  </p>
+              Overview
+            </TabsTrigger>
+            {leaveBalances.map(balance => (
+              <TabsTrigger
+                key={balance.id}
+                value={balance.leaveType.id}
+                className={cn(
+                  "whitespace-nowrap",
+                  leaveBalances.length > 3 ? "min-w-[120px] flex-shrink-0" : ""
                 )}
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Progress Bar */}
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Usage</span>
-                    <span className="font-medium">
-                      {balance.usedDays} / {balance.totalDays} days
-                    </span>
-                  </div>
-                  <Progress
-                    value={usagePercentage}
-                    className="h-2"
-                    indicatorClassName={
-                      usagePercentage >= 90
-                        ? "bg-red-500"
-                        : usagePercentage >= 70
-                          ? "bg-yellow-500"
-                          : "bg-green-500"
-                    }
-                  />
-                  <p className="text-xs text-gray-500">
-                    {usagePercentage.toFixed(1)}% used
-                  </p>
-                </div>
+              >
+                {balance.leaveType.name}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
 
-                {/* Balance Details */}
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div className="flex items-center space-x-2">
-                    <CheckCircle className="h-4 w-4 text-green-500" />
-                    <div>
-                      <p className="text-gray-600">Available</p>
-                      <p className="font-semibold">{balance.availableDays}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <XCircle className="h-4 w-4 text-red-500" />
-                    <div>
-                      <p className="text-gray-600">Used</p>
-                      <p className="font-semibold">{balance.usedDays}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <Clock className="h-4 w-4 text-blue-500" />
-                    <div>
-                      <p className="text-gray-600">Total</p>
-                      <p className="font-semibold">{balance.totalDays}</p>
-                    </div>
-                  </div>
-
-                  {balance.carriedOver > 0 && (
-                    <div className="flex items-center space-x-2">
-                      <Calendar className="h-4 w-4 text-purple-500" />
-                      <div>
-                        <p className="text-gray-600">Carried Over</p>
-                        <p className="font-semibold">{balance.carriedOver}</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Status Indicator */}
-                <div className="border-t pt-2">
-                  {balance.availableDays <= 0 ? (
-                    <div className="flex items-center space-x-2 text-red-600">
-                      <XCircle className="h-4 w-4" />
-                      <span className="text-sm font-medium">
-                        No days remaining
-                      </span>
-                    </div>
-                  ) : balance.availableDays <= 3 ? (
-                    <div className="flex items-center space-x-2 text-yellow-600">
-                      <Clock className="h-4 w-4" />
-                      <span className="text-sm font-medium">Low balance</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center space-x-2 text-green-600">
-                      <CheckCircle className="h-4 w-4" />
-                      <span className="text-sm font-medium">Available</span>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-
-      {/* Summary */}
-      <Card className="bg-gray-50">
-        <CardHeader>
-          <CardTitle className="text-base">Summary</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-4">
-            <div>
-              <p className="text-gray-600">Total Available Days</p>
-              <p className="text-lg font-semibold text-green-600">
-                {leaveBalances.reduce(
-                  (sum, balance) => sum + balance.availableDays,
-                  0
-                )}
-              </p>
-            </div>
-            <div>
-              <p className="text-gray-600">Total Used Days</p>
-              <p className="text-lg font-semibold text-red-600">
-                {leaveBalances.reduce(
-                  (sum, balance) => sum + balance.usedDays,
-                  0
-                )}
-              </p>
-            </div>
-            <div>
-              <p className="text-gray-600">Total Allocated Days</p>
-              <p className="text-lg font-semibold text-blue-600">
-                {leaveBalances.reduce(
-                  (sum, balance) => sum + balance.totalDays,
-                  0
-                )}
-              </p>
-            </div>
-            <div>
-              <p className="text-gray-600">Total Carried Over</p>
-              <p className="text-lg font-semibold text-purple-600">
-                {leaveBalances.reduce(
-                  (sum, balance) => sum + balance.carriedOver,
-                  0
-                )}
-              </p>
-            </div>
+        {/* Overview Tab */}
+        <TabsContent value="overview" className="space-y-6">
+          {/* Leave Balance Cards Grid */}
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {leaveBalances.map(balance => (
+              <LeaveBalanceCard key={balance.id} balance={balance} />
+            ))}
           </div>
-        </CardContent>
-      </Card>
+
+          {/* Summary */}
+          <LeaveBalanceSummary balances={leaveBalances} />
+        </TabsContent>
+
+        {/* Individual Leave Type Tabs */}
+        {leaveBalances.map(balance => (
+          <TabsContent
+            key={balance.id}
+            value={balance.leaveType.id}
+            className="space-y-6"
+          >
+            <LeaveBalanceDetailView balance={balance} />
+          </TabsContent>
+        ))}
+      </Tabs>
     </div>
   );
 }

@@ -456,6 +456,16 @@ input::placeholder {
   @apply text-slate-400;
 }
 
+/* Custom scrollbar utilities */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari, Opera */
+}
+
 .rdp-nav {
   top: 0.75rem;
 
