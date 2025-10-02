@@ -205,11 +205,6 @@ export default function LeaveRequestsPage(): React.ReactElement {
     );
   }
 
-  // Calculate statistics
-  const totalPending = pagination.total;
-  const todayApproved = 0; // This would need to be calculated from another API call if needed
-  const todayRejected = 0; // This would need to be calculated from another API call if needed
-
   return (
     <div className="space-y-6">
       {/* Header */}
