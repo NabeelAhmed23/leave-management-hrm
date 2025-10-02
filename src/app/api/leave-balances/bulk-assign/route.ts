@@ -28,7 +28,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const validatedData = bulkAssignLeaveTypeSchema.parse(body);
 
     logger.info(
-      `Bulk assigning leave type ${validatedData.leaveTypeId} to ${validatedData.employeeIds.length} employees in organization: ${session.employee.organizationId}`
+      `Bulk assigning leave type ${validatedData.leaveTypeId} to ${validatedData.employeeIds?.length || 0} employees in organization: ${session.employee.organizationId}`
     );
 
     // Bulk assign leave type

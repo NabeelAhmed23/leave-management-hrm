@@ -157,7 +157,6 @@ export async function createEmployee(
         _count: {
           select: {
             subordinates: true,
-            leaveRequests: true,
             leaveBalances: true,
           },
         },
@@ -414,7 +413,6 @@ export async function setupPassword(
         _count: {
           select: {
             subordinates: true,
-            leaveRequests: true,
             leaveBalances: true,
           },
         },
@@ -544,14 +542,13 @@ export async function getEmployees(
         _count: {
           select: {
             subordinates: true,
-            leaveRequests: true,
             leaveBalances: true,
           },
         },
       },
       orderBy: [{ isActive: "desc" }, { createdAt: "desc" }],
       skip: offset,
-      take: limit,
+      take: limit > 1 ? limit : undefined,
     });
 
     logger.info("Retrieved employees", {
@@ -622,7 +619,6 @@ export async function getEmployeeById(
         _count: {
           select: {
             subordinates: true,
-            leaveRequests: true,
             leaveBalances: true,
           },
         },
@@ -813,7 +809,6 @@ export async function updateEmployee(
           _count: {
             select: {
               subordinates: true,
-              leaveRequests: true,
               leaveBalances: true,
             },
           },
@@ -895,7 +890,6 @@ export async function deleteEmployee(
         _count: {
           select: {
             subordinates: true,
-            leaveRequests: true,
             leaveBalances: true,
           },
         },
@@ -970,7 +964,6 @@ export async function getEmployeeWithLeaveBalances(
         _count: {
           select: {
             subordinates: true,
-            leaveRequests: true,
             leaveBalances: true,
           },
         },

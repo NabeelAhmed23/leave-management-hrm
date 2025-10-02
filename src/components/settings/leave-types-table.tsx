@@ -17,10 +17,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { Edit, MoreHorizontal, Trash2 } from "lucide-react";
+import { Edit, MoreHorizontal, Trash2, Users } from "lucide-react";
 import { DetailedLeaveType } from "@/types/leave-type.types";
 import { EditLeaveTypeDialog } from "./edit-leave-type-dialog";
 import { DeleteLeaveTypeDialog } from "./delete-leave-type-dialog";
+import { AssignEmployeesDialog } from "./assign-employees-dialog";
 import { formatDistanceToNow } from "date-fns";
 
 interface LeaveTypesTableProps {
@@ -45,6 +46,8 @@ export function LeaveTypesTable({
     useState<DetailedLeaveType | null>(null);
   const [deletingLeaveType, setDeletingLeaveType] =
     useState<DetailedLeaveType | null>(null);
+  const [assigningLeaveType, setAssigningLeaveType] =
+    useState<DetailedLeaveType | null>(null);
 
   const handleEdit = (leaveType: DetailedLeaveType) => {
     setEditingLeaveType(leaveType);
@@ -52,6 +55,10 @@ export function LeaveTypesTable({
 
   const handleDelete = (leaveType: DetailedLeaveType) => {
     setDeletingLeaveType(leaveType);
+  };
+
+  const handleAssignEmployees = (leaveType: DetailedLeaveType) => {
+    setAssigningLeaveType(leaveType);
   };
 
   const renderPagination = () => {
@@ -171,6 +178,12 @@ export function LeaveTypesTable({
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onClick={() => handleAssignEmployees(leaveType)}
+                      >
+                        <Users className="mr-2 h-4 w-4" />
+                        Add employees
+                      </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleEdit(leaveType)}>
                         <Edit className="mr-2 h-4 w-4" />
                         Edit
@@ -208,6 +221,19 @@ export function LeaveTypesTable({
           leaveType={deletingLeaveType}
           open={!!deletingLeaveType}
           onOpenChange={open => !open && setDeletingLeaveType(null)}
+        />
+      )}
+
+      {/* Assign Employees Dialog */}
+      {assigningLeaveType && (
+        <AssignEmployeesDialog
+          leaveType={{
+            id: assigningLeaveType.id,
+            name: assigningLeaveType.name,
+            defaultDays: assigningLeaveType.maxDaysPerYear,
+          }}
+          open={!!assigningLeaveType}
+          onOpenChange={open => !open && setAssigningLeaveType(null)}
         />
       )}
     </>

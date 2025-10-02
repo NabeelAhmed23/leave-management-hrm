@@ -17,6 +17,8 @@ export const leaveBalanceKeys = {
   employeeWithQuery: (employeeId: string, query?: QueryLeaveBalancesDTO) =>
     [...leaveBalanceKeys.employee(employeeId), query] as const,
   detail: (id: string) => [...leaveBalanceKeys.all, "detail", id] as const,
+  assignedToLeaveType: (leaveTypeId: string, year?: number) =>
+    [...leaveBalanceKeys.all, "leave-type", leaveTypeId, year] as const,
 };
 
 /**
@@ -205,6 +207,45 @@ export function useBulkAssignLeaveType() {
 }
 
 /**
+ * Hook to update leave type assignments (add and remove employees)
+ */
+export function useUpdateLeaveTypeAssignments() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: leaveBalanceApi.updateLeaveTypeAssignments,
+    onSuccess: (result: BulkAssignmentResult) => {
+      const { successful, failed } = result.summary;
+
+      if (failed === 0) {
+        toast.success(
+          `Successfully updated assignments for ${successful} employee${successful !== 1 ? "s" : ""}`
+        );
+      } else if (successful === 0) {
+        toast.error(`Failed to update assignments for all ${failed} employees`);
+      } else {
+        toast.warning(
+          `Partially successful: ${successful} updated, ${failed} failed`
+        );
+      }
+
+      // Invalidate all leave balances queries to refresh data
+      queryClient.invalidateQueries({
+        queryKey: leaveBalanceKeys.all,
+      });
+    },
+    onError: (error: unknown) => {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : (error as { response?: { data?: { message?: string } } })?.response
+              ?.data?.message || "Failed to update leave type assignments";
+      toast.error(errorMessage);
+    },
+  });
+}
+
+/**
  * Hook to get leave balance summary for an employee
  */
 export function useLeaveBalanceSummary(
@@ -234,4 +275,23 @@ export function useLeaveBalanceSummary(
     ...query,
     data: summary,
   };
+}
+
+/**
+ * Hook to get employees assigned to a leave type
+ */
+export function useEmployeesAssignedToLeaveType(
+  leaveTypeId: string,
+  year?: number,
+  options?: {
+    enabled?: boolean;
+  }
+) {
+  return useQuery({
+    queryKey: leaveBalanceKeys.assignedToLeaveType(leaveTypeId, year),
+    queryFn: () =>
+      leaveBalanceApi.getEmployeesAssignedToLeaveType(leaveTypeId, year),
+    enabled: options?.enabled !== false && !!leaveTypeId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
 }

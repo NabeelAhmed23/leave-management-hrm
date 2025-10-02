@@ -4,7 +4,6 @@ import { CheckLeaveBalanceInput } from "@/schemas/leave.schema";
 // Base leave request interface
 export interface LeaveRequest {
   id: string;
-  employeeId: string;
   leaveTypeId: string;
   startDate: Date;
   endDate: Date;
@@ -74,7 +73,10 @@ export interface LeaveComment {
 
 // Detailed leave request with relationships
 export interface DetailedLeaveRequest extends LeaveRequest {
-  employee: LeaveRequestEmployee;
+  employees: Array<{
+    id: string;
+    employee: LeaveRequestEmployee;
+  }>;
   leaveType: LeaveType;
   approvedBy?: {
     id: string;

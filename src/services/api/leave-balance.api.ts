@@ -95,6 +95,34 @@ export async function bulkAssignLeaveType(
   return response.data.data;
 }
 
+/**
+ * Update leave type assignments (add and remove employees)
+ */
+export async function updateLeaveTypeAssignments(
+  data: BulkAssignLeaveTypeDTO
+): Promise<BulkAssignmentResult> {
+  const response = await apiClient.post<BulkAssignResponse>(
+    `/leave-balances/update-assignments`,
+    data
+  );
+  return response.data.data;
+}
+
+/**
+ * Get employees assigned to a leave type
+ */
+export async function getEmployeesAssignedToLeaveType(
+  leaveTypeId: string,
+  year?: number
+): Promise<string[]> {
+  const params = year ? { year: year.toString() } : undefined;
+  const response = await apiClient.get<ApiResponse<string[]>>(
+    `/leave-types/${leaveTypeId}/employees`,
+    { params }
+  );
+  return response.data.data;
+}
+
 // Export all functions as a single object for easier importing
 export const leaveBalanceApi = {
   assignLeaveTypeToEmployee,
@@ -103,4 +131,6 @@ export const leaveBalanceApi = {
   updateLeaveBalance,
   deleteLeaveBalance,
   bulkAssignLeaveType,
+  updateLeaveTypeAssignments,
+  getEmployeesAssignedToLeaveType,
 };

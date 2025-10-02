@@ -64,10 +64,14 @@ function validateLeaveDates(startDate: Date, endDate: Date): void {
 
 // Prisma include for detailed leave request
 const leaveRequestInclude = {
-  employee: {
+  employees: {
     include: {
-      user: true,
-      department: true,
+      employee: {
+        include: {
+          user: true,
+          department: true,
+        },
+      },
     },
   },
   leaveType: true,
@@ -151,7 +155,11 @@ export async function createLeaveRequest(
     // Check for overlapping leave requests
     const overlappingLeaves = await prisma.leaveRequest.findMany({
       where: {
-        employeeId,
+        employees: {
+          some: {
+            employeeId,
+          },
+        },
         status: {
           in: [LeaveStatus.PENDING, LeaveStatus.APPROVED],
         },
@@ -175,16 +183,20 @@ export async function createLeaveRequest(
       );
     }
 
-    // Create the leave request
+    // Create the leave request with pivot table entry
     const leaveRequest = await prisma.leaveRequest.create({
       data: {
-        employeeId,
         leaveTypeId,
         startDate,
         endDate,
         totalDays,
         reason,
         status: LeaveStatus.PENDING,
+        employees: {
+          create: {
+            employeeId,
+          },
+        },
       },
       include: leaveRequestInclude,
     });
@@ -231,7 +243,11 @@ export async function getEmployeeLeaveRequests(
 
     // Build where clause
     const where: Record<string, unknown> = {
-      employeeId,
+      employees: {
+        some: {
+          employeeId,
+        },
+      },
     };
 
     if (status) {
@@ -311,7 +327,11 @@ export async function getLeaveRequestById(
     const leaveRequest = await prisma.leaveRequest.findFirst({
       where: {
         id: leaveRequestId,
-        employeeId, // Ensure user can only access their own leave requests
+        employees: {
+          some: {
+            employeeId, // Ensure user can only access their own leave requests
+          },
+        },
       },
       include: leaveRequestInclude,
     });
@@ -351,7 +371,11 @@ export async function updateLeaveRequest(
     const existingLeaveRequest = await prisma.leaveRequest.findFirst({
       where: {
         id: leaveRequestId,
-        employeeId,
+        employees: {
+          some: {
+            employeeId,
+          },
+        },
       },
     });
 
@@ -414,7 +438,11 @@ export async function updateLeaveRequest(
       // Check for overlapping leave requests (excluding current one)
       const overlappingLeaves = await prisma.leaveRequest.findMany({
         where: {
-          employeeId,
+          employees: {
+            some: {
+              employeeId,
+            },
+          },
           id: {
             not: leaveRequestId,
           },
@@ -502,7 +530,11 @@ export async function cancelLeaveRequest(
     const existingLeaveRequest = await prisma.leaveRequest.findFirst({
       where: {
         id: leaveRequestId,
-        employeeId,
+        employees: {
+          some: {
+            employeeId,
+          },
+        },
       },
     });
 
@@ -531,23 +563,14 @@ export async function cancelLeaveRequest(
 
     // Add a comment if reason is provided
     if (reason) {
-      // Get the employee's organization ID
-      const employee = await prisma.employee.findUnique({
-        where: { id: employeeId },
-        select: { organizationId: true },
+      await prisma.leaveComment.create({
+        data: {
+          content: `Leave cancelled by employee. Reason: ${reason}`,
+          employeeId,
+          leaveRequestId,
+          isInternal: false,
+        },
       });
-
-      if (employee) {
-        await prisma.leaveComment.create({
-          data: {
-            content: `Leave cancelled by employee. Reason: ${reason}`,
-            employeeId,
-            leaveRequestId,
-            organizationId: employee.organizationId,
-            isInternal: false,
-          },
-        });
-      }
     }
 
     logger.info(
@@ -721,7 +744,11 @@ export async function checkLeaveBalance(
     // Check for overlapping leave requests
     const overlappingLeaves = await prisma.leaveRequest.findMany({
       where: {
-        employeeId,
+        employees: {
+          some: {
+            employeeId,
+          },
+        },
         status: {
           in: [LeaveStatus.PENDING, LeaveStatus.APPROVED],
         },
@@ -837,5 +864,268 @@ export async function checkLeaveBalance(
 
     logger.error(`Check leave balance error: ${error}`);
     throw new AppError("Failed to check leave balance", 500);
+  }
+}
+
+/**
+ * Get pending leave requests for review (for managers/HR)
+ */
+export async function getPendingLeaveRequestsForReview(
+  organizationId: string,
+  query: QueryLeavesDTO
+): Promise<{
+  leaveRequests: DetailedLeaveRequest[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    pages: number;
+  };
+}> {
+  try {
+    const { leaveTypeId, startDate, endDate, page = 1, limit = 10 } = query;
+
+    // Build where clause for pending requests in the organization
+    const where: Record<string, unknown> = {
+      status: LeaveStatus.PENDING,
+      employees: {
+        some: {
+          employee: {
+            organizationId,
+          },
+        },
+      },
+    };
+
+    if (leaveTypeId) {
+      where.leaveTypeId = leaveTypeId;
+    }
+
+    if (startDate || endDate) {
+      const andConditions: Record<string, unknown>[] = [];
+
+      if (startDate) {
+        andConditions.push({
+          startDate: {
+            gte: startDate,
+          },
+        });
+      }
+
+      if (endDate) {
+        andConditions.push({
+          endDate: {
+            lte: endDate,
+          },
+        });
+      }
+
+      where.AND = andConditions;
+    }
+
+    // Get total count
+    const total = await prisma.leaveRequest.count({ where });
+
+    // Get paginated results
+    const skip = (page - 1) * limit;
+    const leaveRequests = await prisma.leaveRequest.findMany({
+      where,
+      include: leaveRequestInclude,
+      orderBy: {
+        createdAt: "desc",
+      },
+      skip,
+      take: limit,
+    });
+
+    const pages = Math.ceil(total / limit);
+
+    logger.info(
+      `Retrieved ${leaveRequests.length} pending leave requests for organization: ${organizationId}`
+    );
+
+    return {
+      leaveRequests: leaveRequests as DetailedLeaveRequest[],
+      pagination: {
+        page,
+        limit,
+        total,
+        pages,
+      },
+    };
+  } catch (error) {
+    logger.error(`Get pending leave requests error: ${error}`);
+    throw new AppError("Failed to retrieve pending leave requests", 500);
+  }
+}
+
+/**
+ * Approve a leave request
+ */
+export async function approveLeaveRequest(
+  leaveRequestId: string,
+  approverId: string,
+  comment?: string
+): Promise<DetailedLeaveRequest> {
+  try {
+    // Get the leave request
+    const leaveRequest = await prisma.leaveRequest.findUnique({
+      where: {
+        id: leaveRequestId,
+      },
+      include: {
+        employees: {
+          include: {
+            employee: true,
+          },
+        },
+      },
+    });
+
+    if (!leaveRequest) {
+      throw new AppError("Leave request not found", 404);
+    }
+
+    if (leaveRequest.status !== LeaveStatus.PENDING) {
+      throw new AppError(
+        `Cannot approve a ${leaveRequest.status.toLowerCase()} leave request`,
+        400
+      );
+    }
+
+    // Get the employee who made the request
+    const requestEmployee = leaveRequest.employees[0]?.employee;
+    if (!requestEmployee) {
+      throw new AppError("Leave request employee not found", 404);
+    }
+
+    // Update the leave request
+    const approvedLeaveRequest = await prisma.leaveRequest.update({
+      where: {
+        id: leaveRequestId,
+      },
+      data: {
+        status: LeaveStatus.APPROVED,
+        approvedById: approverId,
+        approvedAt: new Date(),
+      },
+      include: leaveRequestInclude,
+    });
+
+    // Update leave balance (deduct used days)
+    const currentYear = new Date().getFullYear();
+    const leaveBalance = await prisma.leaveBalance.findFirst({
+      where: {
+        employeeId: requestEmployee.id,
+        leaveTypeId: leaveRequest.leaveTypeId,
+        year: currentYear,
+      },
+    });
+
+    if (leaveBalance) {
+      await prisma.leaveBalance.update({
+        where: {
+          id: leaveBalance.id,
+        },
+        data: {
+          usedDays: {
+            increment: leaveRequest.totalDays,
+          },
+          availableDays: {
+            decrement: leaveRequest.totalDays,
+          },
+        },
+      });
+    }
+
+    // Add a comment if provided
+    if (comment) {
+      await prisma.leaveComment.create({
+        data: {
+          content: comment,
+          employeeId: approverId,
+          leaveRequestId,
+          isInternal: false,
+        },
+      });
+    }
+
+    logger.info(
+      `Leave request approved: ${leaveRequestId} by employee: ${approverId}`
+    );
+
+    return approvedLeaveRequest as DetailedLeaveRequest;
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
+
+    logger.error(`Approve leave request error: ${error}`);
+    throw new AppError("Failed to approve leave request", 500);
+  }
+}
+
+/**
+ * Reject a leave request
+ */
+export async function rejectLeaveRequest(
+  leaveRequestId: string,
+  rejecterId: string,
+  comment: string
+): Promise<DetailedLeaveRequest> {
+  try {
+    // Get the leave request
+    const leaveRequest = await prisma.leaveRequest.findUnique({
+      where: {
+        id: leaveRequestId,
+      },
+    });
+
+    if (!leaveRequest) {
+      throw new AppError("Leave request not found", 404);
+    }
+
+    if (leaveRequest.status !== LeaveStatus.PENDING) {
+      throw new AppError(
+        `Cannot reject a ${leaveRequest.status.toLowerCase()} leave request`,
+        400
+      );
+    }
+
+    // Update the leave request
+    const rejectedLeaveRequest = await prisma.leaveRequest.update({
+      where: {
+        id: leaveRequestId,
+      },
+      data: {
+        status: LeaveStatus.REJECTED,
+        rejectedById: rejecterId,
+        rejectedAt: new Date(),
+      },
+      include: leaveRequestInclude,
+    });
+
+    // Add a comment with rejection reason
+    await prisma.leaveComment.create({
+      data: {
+        content: comment,
+        employeeId: rejecterId,
+        leaveRequestId,
+        isInternal: false,
+      },
+    });
+
+    logger.info(
+      `Leave request rejected: ${leaveRequestId} by employee: ${rejecterId}`
+    );
+
+    return rejectedLeaveRequest as DetailedLeaveRequest;
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
+
+    logger.error(`Reject leave request error: ${error}`);
+    throw new AppError("Failed to reject leave request", 500);
   }
 }

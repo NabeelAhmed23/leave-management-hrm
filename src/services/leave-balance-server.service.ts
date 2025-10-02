@@ -433,7 +433,13 @@ export async function bulkAssignLeaveType(
     // Verify permissions
     verifyLeaveBalancePermission(userRole);
 
-    const { employeeIds, leaveTypeId, year, totalDays, carriedOver = 0 } = data;
+    const {
+      employeeIds = [],
+      leaveTypeId,
+      year,
+      totalDays,
+      carriedOver = 0,
+    } = data;
 
     // Verify leave type exists and belongs to the organization
     const leaveType = await prisma.leaveType.findFirst({
@@ -580,5 +586,224 @@ export async function getLeaveBalanceById(
 
     logger.error(`Get leave balance by ID error: ${error}`);
     throw new AppError("Failed to retrieve leave balance", 500);
+  }
+}
+
+/**
+ * Get employees assigned to a leave type
+ */
+export async function getEmployeesAssignedToLeaveType(
+  leaveTypeId: string,
+  organizationId: string,
+  year?: number
+): Promise<string[]> {
+  try {
+    const currentYear = year || new Date().getFullYear();
+
+    // Verify leave type exists and belongs to the organization
+    const leaveType = await prisma.leaveType.findFirst({
+      where: {
+        id: leaveTypeId,
+        organizationId,
+      },
+    });
+
+    if (!leaveType) {
+      throw new AppError("Leave type not found in this organization", 404);
+    }
+
+    // Get all leave balances for this leave type
+    const leaveBalances = await prisma.leaveBalance.findMany({
+      where: {
+        leaveTypeId,
+        year: currentYear,
+        employee: {
+          organizationId,
+          isActive: true,
+        },
+      },
+      select: {
+        employeeId: true,
+      },
+    });
+
+    const employeeIds = leaveBalances.map(lb => lb.employeeId);
+
+    logger.info(
+      `Retrieved ${employeeIds.length} employees assigned to leave type: ${leaveTypeId}, year: ${currentYear}`
+    );
+
+    return employeeIds;
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
+
+    logger.error(`Get employees assigned to leave type error: ${error}`);
+    throw new AppError("Failed to retrieve assigned employees", 500);
+  }
+}
+
+/**
+ * Update employee assignments for a leave type (add and remove)
+ */
+export async function updateLeaveTypeAssignments(
+  organizationId: string,
+  userRole: Role,
+  data: BulkAssignLeaveTypeDTO
+): Promise<BulkAssignmentResult> {
+  try {
+    // Verify permissions
+    verifyLeaveBalancePermission(userRole);
+
+    const {
+      employeeIds = [],
+      leaveTypeId,
+      year,
+      totalDays,
+      carriedOver = 0,
+    } = data;
+
+    const currentYear = year || new Date().getFullYear();
+
+    // Verify leave type exists and belongs to the organization
+    const leaveType = await prisma.leaveType.findFirst({
+      where: {
+        id: leaveTypeId,
+        organizationId,
+      },
+    });
+
+    if (!leaveType) {
+      throw new AppError("Leave type not found in this organization", 404);
+    }
+
+    // Get current assignments
+    const currentBalances = await prisma.leaveBalance.findMany({
+      where: {
+        leaveTypeId,
+        year: currentYear,
+        employee: {
+          organizationId,
+          isActive: true,
+        },
+      },
+      include: {
+        employee: {
+          include: {
+            user: {
+              select: {
+                firstName: true,
+                lastName: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const currentEmployeeIds = currentBalances.map(lb => lb.employeeId);
+    const targetEmployeeIds = new Set(employeeIds);
+
+    // Calculate which to remove
+    const toRemove = currentBalances.filter(
+      lb => !targetEmployeeIds.has(lb.employeeId)
+    );
+
+    // Calculate which to add (not currently assigned)
+    const toAdd = employeeIds.filter(id => !currentEmployeeIds.includes(id));
+
+    const result: BulkAssignmentResult = {
+      successful: [],
+      failed: [],
+      summary: {
+        total: employeeIds.length + toRemove.length,
+        successful: 0,
+        failed: 0,
+      },
+    };
+
+    // Remove employees that are no longer selected
+    for (const balance of toRemove) {
+      try {
+        // Check if balance has been used
+        if (balance.usedDays > 0) {
+          const employeeName = balance.employee.user
+            ? `${balance.employee.user.firstName} ${balance.employee.user.lastName}`
+            : "Unknown Employee";
+
+          result.failed.push({
+            employeeId: balance.employeeId,
+            employeeName,
+            error: `Cannot remove assignment with ${balance.usedDays} days already used`,
+          });
+          continue;
+        }
+
+        await prisma.leaveBalance.delete({
+          where: {
+            id: balance.id,
+          },
+        });
+
+        const employeeName = balance.employee.user
+          ? `${balance.employee.user.firstName} ${balance.employee.user.lastName}`
+          : "Unknown Employee";
+
+        result.successful.push({
+          employeeId: balance.employeeId,
+          employeeName,
+          leaveBalanceId: balance.id,
+        });
+
+        logger.info(
+          `Removed leave balance: ${balance.id} for employee: ${balance.employeeId}`
+        );
+      } catch (error) {
+        const employeeName = balance.employee.user
+          ? `${balance.employee.user.firstName} ${balance.employee.user.lastName}`
+          : "Unknown Employee";
+
+        result.failed.push({
+          employeeId: balance.employeeId,
+          employeeName,
+          error:
+            error instanceof AppError
+              ? error.message
+              : "Failed to remove assignment",
+        });
+      }
+    }
+
+    // Add new employees that were selected
+    if (toAdd.length > 0) {
+      const assignResult = await bulkAssignLeaveType(organizationId, userRole, {
+        employeeIds: toAdd,
+        leaveTypeId,
+        year: currentYear,
+        totalDays,
+        carriedOver,
+      });
+
+      // Merge results
+      result.successful.push(...assignResult.successful);
+      result.failed.push(...assignResult.failed);
+    }
+
+    result.summary.successful = result.successful.length;
+    result.summary.failed = result.failed.length;
+
+    logger.info(
+      `Updated leave type assignments: ${result.summary.successful} successful, ${result.summary.failed} failed for leave type: ${leaveTypeId}, year: ${currentYear}`
+    );
+
+    return result;
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
+
+    logger.error(`Update leave type assignments error: ${error}`);
+    throw new AppError("Failed to update leave type assignments", 500);
   }
 }

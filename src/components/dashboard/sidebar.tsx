@@ -52,12 +52,6 @@ const navigation: NavItem[] = [
     roles: ["MANAGER", "HR_ADMIN", "SUPER_ADMIN"],
   },
   {
-    title: "Team Leaves",
-    href: "/dashboard/leaves/team",
-    icon: Users,
-    roles: ["MANAGER", "HR_ADMIN", "SUPER_ADMIN"],
-  },
-  {
     title: "Employees",
     href: "/dashboard/employees",
     icon: Users,

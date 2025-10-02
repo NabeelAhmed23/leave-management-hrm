@@ -83,13 +83,21 @@ export async function getEmployeeDashboardStats(
       await Promise.all([
         prisma.leaveRequest.count({
           where: {
-            employeeId,
+            employees: {
+              some: {
+                employeeId,
+              },
+            },
             status: LeaveStatus.PENDING,
           },
         }),
         prisma.leaveRequest.count({
           where: {
-            employeeId,
+            employees: {
+              some: {
+                employeeId,
+              },
+            },
             status: LeaveStatus.APPROVED,
             startDate: {
               gte: new Date(`${currentYear}-01-01`),
@@ -99,7 +107,11 @@ export async function getEmployeeDashboardStats(
         }),
         prisma.leaveRequest.count({
           where: {
-            employeeId,
+            employees: {
+              some: {
+                employeeId,
+              },
+            },
             status: LeaveStatus.REJECTED,
             startDate: {
               gte: new Date(`${currentYear}-01-01`),
@@ -115,8 +127,12 @@ export async function getEmployeeDashboardStats(
 
     const teamOnLeave = await prisma.leaveRequest.count({
       where: {
-        employee: {
-          organizationId,
+        employees: {
+          some: {
+            employee: {
+              organizationId,
+            },
+          },
         },
         status: LeaveStatus.APPROVED,
         startDate: {
@@ -174,8 +190,12 @@ export async function getManagerDashboardStats(
     // Get employees currently on leave
     const employeesOnLeave = await prisma.leaveRequest.count({
       where: {
-        employee: {
-          organizationId,
+        employees: {
+          some: {
+            employee: {
+              organizationId,
+            },
+          },
         },
         status: LeaveStatus.APPROVED,
         startDate: {
@@ -193,8 +213,12 @@ export async function getManagerDashboardStats(
     // Get pending approval requests
     const pendingApprovals = await prisma.leaveRequest.count({
       where: {
-        employee: {
-          organizationId,
+        employees: {
+          some: {
+            employee: {
+              organizationId,
+            },
+          },
         },
         status: LeaveStatus.PENDING,
       },
@@ -354,25 +378,31 @@ export async function getTeamStatus(
       include: {
         user: true,
         department: true,
-        leaveRequests: {
+        leaveRequestEmployees: {
           where: {
-            status: LeaveStatus.APPROVED,
-            startDate: {
-              lte: today,
-            },
-            endDate: {
-              gte: today,
+            leaveRequest: {
+              status: LeaveStatus.APPROVED,
+              startDate: {
+                lte: today,
+              },
+              endDate: {
+                gte: today,
+              },
             },
           },
           include: {
-            leaveType: true,
+            leaveRequest: {
+              include: {
+                leaveType: true,
+              },
+            },
           },
         },
       },
     });
 
     const teamMembers: TeamMember[] = employees.map(employee => {
-      const currentLeave = employee.leaveRequests[0]; // Should only be one active leave
+      const currentLeave = employee.leaveRequestEmployees[0]?.leaveRequest; // Should only be one active leave
 
       return {
         id: employee.id,
@@ -411,15 +441,23 @@ export async function getEmployeePendingRequests(
   try {
     const pendingRequests = await prisma.leaveRequest.findMany({
       where: {
-        employeeId,
+        employees: {
+          some: {
+            employeeId,
+          },
+        },
         status: LeaveStatus.PENDING,
       },
       include: {
         leaveType: true,
-        employee: {
+        employees: {
           include: {
-            user: true,
-            department: true,
+            employee: {
+              include: {
+                user: true,
+                department: true,
+              },
+            },
           },
         },
       },
@@ -429,19 +467,22 @@ export async function getEmployeePendingRequests(
     });
 
     const formattedRequests: PendingLeaveRequest[] = pendingRequests.map(
-      request => ({
-        id: request.id,
-        employeeName: request.employee.user
-          ? `${request.employee.user.firstName} ${request.employee.user.lastName}`
-          : "Unknown Employee",
-        department: request.employee.department?.name,
-        leaveType: request.leaveType.name,
-        startDate: request.startDate,
-        endDate: request.endDate,
-        totalDays: request.totalDays,
-        reason: request.reason || undefined,
-        createdAt: request.createdAt,
-      })
+      request => {
+        const employee = request.employees[0]?.employee;
+        return {
+          id: request.id,
+          employeeName: employee?.user
+            ? `${employee.user.firstName} ${employee.user.lastName}`
+            : "Unknown Employee",
+          department: employee?.department?.name,
+          leaveType: request.leaveType.name,
+          startDate: request.startDate,
+          endDate: request.endDate,
+          totalDays: request.totalDays,
+          reason: request.reason || undefined,
+          createdAt: request.createdAt,
+        };
+      }
     );
 
     logger.info("Retrieved employee pending requests", {
@@ -468,17 +509,25 @@ export async function getAllPendingApprovalRequests(
   try {
     const pendingRequests = await prisma.leaveRequest.findMany({
       where: {
-        employee: {
-          organizationId,
+        employees: {
+          some: {
+            employee: {
+              organizationId,
+            },
+          },
         },
         status: LeaveStatus.PENDING,
       },
       include: {
         leaveType: true,
-        employee: {
+        employees: {
           include: {
-            user: true,
-            department: true,
+            employee: {
+              include: {
+                user: true,
+                department: true,
+              },
+            },
           },
         },
       },
@@ -488,19 +537,22 @@ export async function getAllPendingApprovalRequests(
     });
 
     const formattedRequests: PendingLeaveRequest[] = pendingRequests.map(
-      request => ({
-        id: request.id,
-        employeeName: request.employee.user
-          ? `${request.employee.user.firstName} ${request.employee.user.lastName}`
-          : "Unknown Employee",
-        department: request.employee.department?.name,
-        leaveType: request.leaveType.name,
-        startDate: request.startDate,
-        endDate: request.endDate,
-        totalDays: request.totalDays,
-        reason: request.reason || undefined,
-        createdAt: request.createdAt,
-      })
+      request => {
+        const employee = request.employees[0]?.employee;
+        return {
+          id: request.id,
+          employeeName: employee?.user
+            ? `${employee.user.firstName} ${employee.user.lastName}`
+            : "Unknown Employee",
+          department: employee?.department?.name,
+          leaveType: request.leaveType.name,
+          startDate: request.startDate,
+          endDate: request.endDate,
+          totalDays: request.totalDays,
+          reason: request.reason || undefined,
+          createdAt: request.createdAt,
+        };
+      }
     );
 
     logger.info("Retrieved all pending approval requests", {

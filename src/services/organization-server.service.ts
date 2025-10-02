@@ -259,37 +259,61 @@ export async function getOrganizationStats(
       }),
       prisma.leaveRequest.count({
         where: {
-          employee: { organizationId },
+          employees: {
+            some: {
+              employee: { organizationId },
+            },
+          },
         },
       }),
       prisma.leaveRequest.count({
         where: {
-          employee: { organizationId },
+          employees: {
+            some: {
+              employee: { organizationId },
+            },
+          },
           status: LeaveStatus.PENDING,
         },
       }),
       prisma.leaveRequest.count({
         where: {
-          employee: { organizationId },
+          employees: {
+            some: {
+              employee: { organizationId },
+            },
+          },
           status: LeaveStatus.APPROVED,
         },
       }),
       prisma.leaveRequest.count({
         where: {
-          employee: { organizationId },
+          employees: {
+            some: {
+              employee: { organizationId },
+            },
+          },
           status: LeaveStatus.REJECTED,
         },
       }),
       prisma.leaveRequest.count({
         where: {
-          employee: { organizationId },
+          employees: {
+            some: {
+              employee: { organizationId },
+            },
+          },
           status: LeaveStatus.CANCELLED,
         },
       }),
       prisma.leaveRequest.groupBy({
         by: ["status"],
         where: {
-          employee: { organizationId },
+          employees: {
+            some: {
+              employee: { organizationId },
+            },
+          },
           createdAt: {
             gte: startOfMonth,
             lte: endOfMonth,
@@ -300,7 +324,11 @@ export async function getOrganizationStats(
       prisma.leaveRequest.groupBy({
         by: ["status"],
         where: {
-          employee: { organizationId },
+          employees: {
+            some: {
+              employee: { organizationId },
+            },
+          },
           createdAt: {
             gte: startOfYear,
           },
@@ -309,7 +337,11 @@ export async function getOrganizationStats(
       }),
       prisma.leaveRequest.aggregate({
         where: {
-          employee: { organizationId },
+          employees: {
+            some: {
+              employee: { organizationId },
+            },
+          },
           status: LeaveStatus.APPROVED,
           startDate: {
             gte: startOfYear,
@@ -329,7 +361,7 @@ export async function getOrganizationStats(
     };
 
     thisMonthRequests.forEach(stat => {
-      const count = stat._count;
+      const count = (stat._count as { _all?: number })?._all || 0;
       switch (stat.status) {
         case LeaveStatus.PENDING:
         case LeaveStatus.APPROVED:
@@ -353,7 +385,7 @@ export async function getOrganizationStats(
     };
 
     thisYearRequests.forEach(stat => {
-      const count = stat._count;
+      const count = (stat._count as { _all?: number })?._all || 0;
       switch (stat.status) {
         case LeaveStatus.PENDING:
         case LeaveStatus.APPROVED:
@@ -422,7 +454,7 @@ export async function getOrganizationStats(
         thisMonth: monthlyStats,
         thisYear: {
           ...yearlyStats,
-          totalDaysTaken: thisYearApprovedDays._sum.totalDays || 0,
+          totalDaysTaken: thisYearApprovedDays._sum?.totalDays || 0,
         },
       },
       holidays: {

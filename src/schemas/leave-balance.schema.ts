@@ -41,10 +41,7 @@ export const updateLeaveBalanceSchema = z.object({
 
 // Bulk assign leave types schema (for multiple employees)
 export const bulkAssignLeaveTypeSchema = z.object({
-  employeeIds: z
-    .array(z.string().cuid("Invalid employee ID"))
-    .min(1, "At least one employee must be selected")
-    .max(100, "Cannot assign to more than 100 employees at once"),
+  employeeIds: z.array(z.string().cuid("Invalid employee ID")).optional(),
   leaveTypeId: z.string().cuid("Invalid leave type ID"),
   year: z
     .number()

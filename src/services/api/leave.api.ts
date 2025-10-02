@@ -146,6 +146,75 @@ const leaveApi = {
 
     return response.data.data;
   },
+
+  // Approve leave request
+  approveLeaveRequest: async (
+    id: string,
+    comment?: string
+  ): Promise<DetailedLeaveRequest> => {
+    const response = await apiClient.post<LeaveRequestResponse>(
+      `/leaves/${id}/approve`,
+      { comment }
+    );
+
+    if (!response.data.success || !response.data.data) {
+      throw new AppError(
+        response.data.message || "Failed to approve leave request",
+        500
+      );
+    }
+
+    return response.data.data;
+  },
+
+  // Reject leave request
+  rejectLeaveRequest: async (
+    id: string,
+    comment: string
+  ): Promise<DetailedLeaveRequest> => {
+    const response = await apiClient.post<LeaveRequestResponse>(
+      `/leaves/${id}/reject`,
+      { comment }
+    );
+
+    if (!response.data.success || !response.data.data) {
+      throw new AppError(
+        response.data.message || "Failed to reject leave request",
+        500
+      );
+    }
+
+    return response.data.data;
+  },
+
+  // Get pending leave requests for review (managers/HR)
+  getPendingLeaveRequests: async (
+    params: QueryLeavesDTO
+  ): Promise<{
+    leaveRequests: DetailedLeaveRequest[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      pages: number;
+    };
+  }> => {
+    const response = await apiClient.get<LeaveRequestsResponse>("/leaves", {
+      params: {
+        ...params,
+        status: "PENDING", // Force status to PENDING
+      },
+    });
+
+    if (!response.data.success || !response.data.data) {
+      throw new AppError(
+        response.data.message || "Failed to fetch pending leave requests",
+        500
+      );
+    }
+
+    return response.data.data;
+  },
 };
 
 // React Query hooks
@@ -309,6 +378,61 @@ export function useCheckLeaveBalance() {
     onError: () => {
       // Error handling is managed by React Query's error boundaries
     },
+  });
+}
+
+/**
+ * Hook to approve a leave request
+ */
+export function useApproveLeaveRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, comment }: { id: string; comment?: string }) =>
+      leaveApi.approveLeaveRequest(id, comment),
+    onSuccess: (data, variables) => {
+      // Update the specific leave request in cache
+      queryClient.setQueryData(leaveQueryKeys.detail(variables.id), data);
+
+      // Invalidate the lists to ensure consistency
+      queryClient.invalidateQueries({ queryKey: leaveQueryKeys.lists() });
+    },
+    onError: () => {
+      // Error handling is managed by React Query's error boundaries
+    },
+  });
+}
+
+/**
+ * Hook to reject a leave request
+ */
+export function useRejectLeaveRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, comment }: { id: string; comment: string }) =>
+      leaveApi.rejectLeaveRequest(id, comment),
+    onSuccess: (data, variables) => {
+      // Update the specific leave request in cache
+      queryClient.setQueryData(leaveQueryKeys.detail(variables.id), data);
+
+      // Invalidate the lists to ensure consistency
+      queryClient.invalidateQueries({ queryKey: leaveQueryKeys.lists() });
+    },
+    onError: () => {
+      // Error handling is managed by React Query's error boundaries
+    },
+  });
+}
+
+/**
+ * Hook to fetch pending leave requests for review (managers/HR)
+ */
+export function usePendingLeaveRequests(params: QueryLeavesDTO = {}) {
+  return useQuery({
+    queryKey: leaveQueryKeys.list({ ...params, status: "PENDING" as const }),
+    queryFn: () => leaveApi.getPendingLeaveRequests(params),
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }
 

@@ -163,7 +163,8 @@ export function CreateLeaveForm({
         setIsCheckingBalance(false);
       }
     };
-  }, [leaveTypeId, startDate, endDate, checkBalanceMutation]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leaveTypeId, startDate, endDate]);
 
   const getTotalDays = (): number => {
     return calculateDays();
@@ -193,7 +194,7 @@ export function CreateLeaveForm({
       onSuccess: () => {
         form.reset();
         onSuccess?.();
-        router.push("/dashboard/leaves");
+        router.push("/dashboard/leaves/my-leaves");
       },
       onError: error => {
         setSubmitError(error.message || "Failed to submit leave request");

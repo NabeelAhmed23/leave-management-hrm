@@ -119,7 +119,7 @@ export const queryEmployeesSchema = z.object({
   limit: z
     .string()
     .transform(val => parseInt(val, 10))
-    .refine(val => val > 0 && val <= 100, "Limit must be between 1 and 100")
+    .refine(val => val >= 0 && val <= 100, "Limit must be between 0 and 100")
     .default("10"),
 });
 

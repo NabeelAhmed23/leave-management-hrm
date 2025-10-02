@@ -39,7 +39,6 @@ model Organization {
   leaveTypes       LeaveType[]
   leavePolicies    LeavePolicy[]
   holidays         Holiday[]
-  leaveComments    LeaveComment[]
   notifications    Notification[]
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
@@ -48,33 +47,33 @@ model Organization {
 }
 
 model Employee {
-  id                 String          @id @default(cuid())
-  employeeNumber     String          @unique // Custom employee ID like EMP001
-  userId             String?         @unique // One-to-one relationship with User (nullable for invite flow)
-  user               User?           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organizationId     String
-  organization       Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  departmentId       String?
-  department         Department?     @relation(fields: [departmentId], references: [id])
-  role               Role            @default(EMPLOYEE)
-  jobTitle           String?
-  managerId          String?
-  manager            Employee?       @relation("EmployeeManager", fields: [managerId], references: [id])
-  subordinates       Employee[]      @relation("EmployeeManager")
-  managedDepartments Department[]    @relation("DepartmentManager")
-  startDate          DateTime
-  endDate            DateTime?
-  dateOfBirth        DateTime?
-  isActive           Boolean         @default(true)
-  leaveRequests      LeaveRequest[]
-  approvedRequests   LeaveRequest[]  @relation("ApprovedBy")
-  rejectedRequests   LeaveRequest[]  @relation("RejectedBy")
-  leaveBalances      LeaveBalance[]
-  leaveComments      LeaveComment[]
-  notifications      Notification[]
-  invite             EmployeeInvite?
-  createdAt          DateTime        @default(now())
-  updatedAt          DateTime        @updatedAt
+  id                    String                   @id @default(cuid())
+  employeeNumber        String                   @unique // Custom employee ID like EMP001
+  userId                String?                  @unique // One-to-one relationship with User (nullable for invite flow)
+  user                  User?                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId        String
+  organization          Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  departmentId          String?
+  department            Department?              @relation(fields: [departmentId], references: [id])
+  role                  Role                     @default(EMPLOYEE)
+  jobTitle              String?
+  managerId             String?
+  manager               Employee?                @relation("EmployeeManager", fields: [managerId], references: [id])
+  subordinates          Employee[]               @relation("EmployeeManager")
+  managedDepartments    Department[]             @relation("DepartmentManager")
+  startDate             DateTime
+  endDate               DateTime?
+  dateOfBirth           DateTime?
+  isActive              Boolean                  @default(true)
+  leaveRequestEmployees LeaveRequestEmployees[]
+  approvedRequests      LeaveRequest[]           @relation("ApprovedBy")
+  rejectedRequests      LeaveRequest[]           @relation("RejectedBy")
+  leaveBalances         LeaveBalance[]
+  leaveComments         LeaveComment[]
+  notifications         Notification[]
+  invite                EmployeeInvite?
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
 
   @@map("employees")
 }
@@ -113,28 +112,39 @@ model LeaveType {
 }
 
 model LeaveRequest {
-  id            String            @id @default(cuid())
-  employeeId    String
-  employee      Employee          @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  id            String                   @id @default(cuid())
+  employees     LeaveRequestEmployees[]
   leaveTypeId   String
-  leaveType     LeaveType         @relation(fields: [leaveTypeId], references: [id])
+  leaveType     LeaveType                @relation(fields: [leaveTypeId], references: [id])
   startDate     DateTime
   endDate       DateTime
   totalDays     Int
   reason        String?
-  status        LeaveStatus       @default(PENDING)
+  status        LeaveStatus              @default(PENDING)
   approvedById  String?
-  approvedBy    Employee?         @relation("ApprovedBy", fields: [approvedById], references: [id])
+  approvedBy    Employee?                @relation("ApprovedBy", fields: [approvedById], references: [id])
   approvedAt    DateTime?
   rejectedById  String?
-  rejectedBy    Employee?         @relation("RejectedBy", fields: [rejectedById], references: [id])
+  rejectedBy    Employee?                @relation("RejectedBy", fields: [rejectedById], references: [id])
   rejectedAt    DateTime?
   leaveComments LeaveComment[]
   attachments   LeaveAttachment[]
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
 
   @@map("leave_requests")
+}
+
+model LeaveRequestEmployees {
+  id             String       @id @default(cuid())
+  leaveRequestId String
+  leaveRequest   LeaveRequest @relation(fields: [leaveRequestId], references: [id], onDelete: Cascade)
+  employeeId     String
+  employee       Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+
+  @@unique([leaveRequestId, employeeId])
+  @@map("leave_request_employees")
 }
 
 model LeaveComment {
@@ -144,8 +154,6 @@ model LeaveComment {
   employee       Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   leaveRequestId String
   leaveRequest   LeaveRequest @relation(fields: [leaveRequestId], references: [id], onDelete: Cascade)
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   isInternal     Boolean      @default(false) // Internal comments vs public
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
