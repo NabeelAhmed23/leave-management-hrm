@@ -18,6 +18,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Sidebar } from "./sidebar";
 import { Menu, Bell, User, Settings, LogOut, ChevronDown } from "lucide-react";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 interface TopbarProps {
   title?: string;
@@ -29,6 +30,7 @@ export function Topbar({
   const { user } = useAuth();
   const logoutMutation = useLogoutMutation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const router = useRouter();
 
   if (!user) {
     return <div className="h-16 border-b bg-white" />;
@@ -106,11 +108,21 @@ export function Topbar({
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <User className="mr-2 h-4 w-4" />
-                Profile
-              </DropdownMenuItem>
-              <DropdownMenuItem>
+              {user.employee && user.employee.id && (
+                <DropdownMenuItem
+                  onClick={() =>
+                    router.push(
+                      `/dashboard/employees/${user.employee && user.employee.id}`
+                    )
+                  }
+                >
+                  <User className="mr-2 h-4 w-4" />
+                  Profile
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem
+                onClick={() => router.push("/dashboard/settings")}
+              >
                 <Settings className="mr-2 h-4 w-4" />
                 Settings
               </DropdownMenuItem>

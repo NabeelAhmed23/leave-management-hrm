@@ -30,6 +30,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 
 interface PaginationInfo {
   page: number;
@@ -42,7 +43,6 @@ interface LeaveRequestTableProps {
   data: DetailedLeaveRequest[];
   pagination: PaginationInfo;
   onPageChange: (page: number) => void;
-  onView?: (request: DetailedLeaveRequest) => void;
   onEdit?: (request: DetailedLeaveRequest) => void;
   onCancel?: (request: DetailedLeaveRequest) => void;
   isLoading?: boolean;
@@ -52,13 +52,17 @@ export function LeaveRequestTable({
   data,
   pagination,
   onPageChange,
-  onView,
   onEdit,
   onCancel,
   isLoading = false,
 }: LeaveRequestTableProps): React.ReactElement {
+  const router = useRouter();
   const [sortField, setSortField] = useState<keyof LeaveRequest>("createdAt");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+
+  const handleView = (request: DetailedLeaveRequest): void => {
+    router.push(`/dashboard/leaves/${request.id}`);
+  };
 
   const handleSort = (field: keyof LeaveRequest): void => {
     if (sortField === field) {
@@ -205,12 +209,10 @@ export function LeaveRequestTable({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        {onView && (
-                          <DropdownMenuItem onClick={() => onView(request)}>
-                            <Eye className="mr-2 h-4 w-4" />
-                            View Details
-                          </DropdownMenuItem>
-                        )}
+                        <DropdownMenuItem onClick={() => handleView(request)}>
+                          <Eye className="mr-2 h-4 w-4" />
+                          View Details
+                        </DropdownMenuItem>
                         {onEdit && request.status === "PENDING" && (
                           <DropdownMenuItem onClick={() => onEdit(request)}>
                             <Edit className="mr-2 h-4 w-4" />

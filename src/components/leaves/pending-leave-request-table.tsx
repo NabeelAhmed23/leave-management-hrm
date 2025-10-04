@@ -26,8 +26,10 @@ import {
   ChevronRight,
   ClipboardList,
   MoreHorizontal,
+  Eye,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 
 interface PaginationInfo {
   page: number;
@@ -53,6 +55,12 @@ export function PendingLeaveRequestTable({
   onReject,
   isLoading = false,
 }: PendingLeaveRequestTableProps): React.ReactElement {
+  const router = useRouter();
+
+  const handleView = (request: DetailedLeaveRequest): void => {
+    router.push(`/dashboard/leaves/${request.id}`);
+  };
+
   const generatePageNumbers = (): number[] => {
     const pages: number[] = [];
     const maxVisiblePages = 5;
@@ -171,6 +179,10 @@ export function PendingLeaveRequestTable({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleView(request)}>
+                          <Eye className="mr-2 h-4 w-4" />
+                          View Details
+                        </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => onApprove(request)}
                           className="text-green-600 focus:text-green-600"

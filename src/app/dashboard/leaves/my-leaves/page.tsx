@@ -46,11 +46,6 @@ export default function MyLeavesPage(): React.ReactElement {
     pages: 0,
   };
 
-  const handleView = (request: DetailedLeaveRequest): void => {
-    // TODO: Implement view functionality
-    alert(`Viewing request ${request.id}`);
-  };
-
   const handleEdit = (request: DetailedLeaveRequest): void => {
     // TODO: Navigate to edit page
     alert(`Editing request ${request.id}`);
@@ -270,7 +265,6 @@ export default function MyLeavesPage(): React.ReactElement {
         data={leaveRequests}
         pagination={pagination}
         onPageChange={handlePageChange}
-        onView={handleView}
         onEdit={handleEdit}
         onCancel={handleCancel}
         isLoading={cancelLeaveRequestMutation.isPending}
